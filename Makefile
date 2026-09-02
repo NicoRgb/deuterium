@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=gnu11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wstrict-prototypes -Wundef -fno-common -O2 -Icompiler/include -DALWAYS_VERBOSE
+CFLAGS = -std=gnu11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wstrict-prototypes -Wundef -fno-common -O0 -g -Icompiler/include -DALWAYS_VERBOSE
 LDFLAGS =
 
 SRC_DIR = compiler/src

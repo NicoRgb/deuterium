@@ -12,7 +12,7 @@ void parse_arguments(int argc, char *argv[], compiler_config_t *out_config)
     out_config->mode = COMPILER_MODE_COMPILE;
     out_config->verbosity = COMPILER_VERBOSITY_NORMAL;
     out_config->outfile = "a.out";
-    out_config->infiles = array_create(char *);
+    array_create(char *, out_config->infiles);
 
     int c = 0;
     for (;;)

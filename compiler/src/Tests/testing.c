@@ -11,11 +11,10 @@
 
 #include "logger.h"
 
-static test_t *create_test(test_func_t func, const char *name, const char *desc)
+static test_t *create_test(test_func_t func, const char *name)
 {
     ASSERT(func);
     ASSERT(name);
-    ASSERT(desc);
 
     test_t *res = malloc(sizeof(test_t));
     if (!res)
@@ -28,7 +27,6 @@ static test_t *create_test(test_func_t func, const char *name, const char *desc)
 
     res->func = func;
     res->name = strdup(name);
-    res->description = strdup(desc);
 
     res->status = TEST_STATUS_IDLE;
 
@@ -44,27 +42,20 @@ static void free_test(test_t *test)
     if (test->name)
         free(test->name);
 
-    if (test->description)
-        free(test->description);
-
-    if (test->error_message)
-        free(test->error_message);
-
     free(test);
 }
 
 array_t(test_t *) registered_tests = NULL_ARRAY;
 
-void register_test(test_func_t func, const char *name, const char *desc)
+void register_test(test_func_t func, const char *name)
 {
     ASSERT(func);
     ASSERT(name);
-    ASSERT(desc);
 
     if (!registered_tests)
-        registered_tests = array_create(test_t *);
+        array_create(test_t *, registered_tests);
 
-    test_t *test = create_test(func, name, desc);
+    test_t *test = create_test(func, name);
     array_push(registered_tests, test);
 }
 
@@ -91,7 +82,9 @@ static void run_test(test_t *test)
     test->start_time = clock();
     pthread_mutex_unlock(&test->mutex_lock);
 
-    test->status = test->func();
+    test_result_t res = test->func();
+    test->status = res.status;
+    test->error_message = res.error_str;
 
     pthread_mutex_lock(&test->mutex_lock);
     if (test->status == TEST_STATUS_RUNNING)
@@ -375,11 +368,12 @@ static void render_dashboard(clock_t dashboard_start_time)
             snprintf(duration, sizeof(duration), "--");
         }
 
-        printf("  %s%-4s%s  %-40s %10s\n",
+        printf("  %s%-4s%s  %-10s " ANSI_GRAY "%-20s" ANSI_RESET " %10s\n",
                status_color(status),
                status_string(status),
                ANSI_RESET,
                test->name ? test->name : "unnamed",
+               test->error_message ? test->error_message : "",
                duration);
 
         pthread_mutex_unlock(&test->mutex_lock);

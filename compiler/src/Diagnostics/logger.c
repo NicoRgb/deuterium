@@ -33,9 +33,9 @@ static void _log(log_level_t level, const char *fmt, va_list args)
     if (level > 3)
         exit(EXIT_FAILURE);
 
+#ifndef ALWAYS_VERBOSE
     compiler_config_t *config = get_global_config();
 
-#ifndef ALWAYS_VERBOSE
     if ((!config || config->verbosity != COMPILER_VERBOSITY_ALL) && level < 3)
         return;
 #endif

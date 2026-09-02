@@ -18,8 +18,9 @@ typedef struct
 #define array_t(type) type *
 #define NULL_ARRAY NULL
 
-#define array_create(type)                                                                                    \
-    ({                                                                                                        \
+#define array_create(type, arr)                                                                               \
+    do                                                                                                        \
+    {                                                                                                         \
         __array_metadata_t *res = malloc(sizeof(type) * ARRAY_INITIAL_CAPACITY + sizeof(__array_metadata_t)); \
         if (!res)                                                                                             \
         {                                                                                                     \
@@ -30,8 +31,8 @@ typedef struct
         res->size = 0;                                                                                        \
         res->capacity = ARRAY_INITIAL_CAPACITY;                                                               \
                                                                                                               \
-        (type *)((uintptr_t)res + sizeof(__array_metadata_t));                                                \
-    })
+        arr = (type *)((uintptr_t)res + sizeof(__array_metadata_t));                                          \
+    } while (0)
 
 #define array_free(array)                                                                                     \
     do                                                                                                        \
