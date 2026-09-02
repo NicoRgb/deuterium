@@ -1,0 +1,19 @@
+translation_unit
+    : function_definition
+    ;
+
+function_definition
+    : type_specifier IDENTIFIER '(' parameter_list ')' compound_statement
+    ;
+
+type_specifier
+    : INT
+    ;
+
+parameter_list
+    : VOID
+    ;
+
+compound_statement
+    : '{' '}'
+    ;
