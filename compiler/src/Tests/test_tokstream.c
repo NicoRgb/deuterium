@@ -3,9 +3,11 @@
 
 DECLARE_TEST(tokstream)
 {
+    const char *text = "int main() {}";
+
+    init_errors("[test_lexer]", text);
     init_lexer();
 
-    const char *text = "int main() {}";
     tokstream_init(text);
 
     TEST_ASSERT_A(tok_expect_kw("int"));

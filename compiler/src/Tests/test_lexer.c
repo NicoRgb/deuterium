@@ -3,9 +3,10 @@
 
 DECLARE_TEST(lexer)
 {
-    init_lexer();
-
     const char *text = "int main() {}";
+
+    init_errors("[test_lexer]", text);
+    init_lexer();
 
     token_t tok;
     int i = 0;
