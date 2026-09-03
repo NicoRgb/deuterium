@@ -67,4 +67,13 @@ typedef struct
         array[index] = element;                                                                                   \
     } while (0)
 
+#define array_clear(array)                                                                                    \
+    do                                                                                                        \
+    {                                                                                                         \
+        ASSERT(array);                                                                                        \
+        __array_metadata_t *metadata = (__array_metadata_t *)((uintptr_t)array - sizeof(__array_metadata_t)); \
+        ASSERT(metadata->capacity != 0);                                                                      \
+        metadata->size = 0;                                                                                   \
+    } while (0)
+
 #define array_size(array) ((__array_metadata_t *)((uintptr_t)array - sizeof(__array_metadata_t)))->size

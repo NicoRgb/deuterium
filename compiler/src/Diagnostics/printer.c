@@ -44,18 +44,12 @@ static void print_AST_node(AST_node_t *node, uint16_t indent)
     }
 }
 
-const char *token_type_keywords[] = {
-    "KEYWORD", "IDENTIFIER", "INTLIT", "LPAREN", "RPAREN", "LBRACE", "RBRACE", "LBRACKET", "RBRACKET", "SEMICOLON", "COMMA", "PLUS",
-    "MINUS", "STAR", "SLASH", "PERCENT", "EQUAL", "LESS", "GREATER", "BANG", "AMPERSAND", "PIPE", "CARET", "TILDE", "QUESTION", "COLON",
-    "DOT", "ARROW", "PLUS_PLUS", "MINUS_MINUS", "EQUAL_EQUAL", "NOT_EQUAL", "LESS_EQUAL", "GREATER_EQUAL", "AND_AND", "OR_OR", "SHIFT_LEFT",
-    "SHIFT_RIGHT", "ELLIPSIS"};
-
 void print_token(token_t *token)
 {
     if (token->type == TOKTYPE_KEYWORD || token->type == TOKTYPE_IDENTIFIER)
-        printf("%s(%s)\n", token_type_keywords[token->type], token->text);
+        printf("%s(%s)\n", token_type_names[token->type], token->text);
     else
-        printf("%s", token_type_keywords[token->type]);
+        printf("%s", token_type_names[token->type]);
 }
 
 void print_AST(AST_node_t *AST)

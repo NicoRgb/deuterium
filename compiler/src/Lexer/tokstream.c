@@ -160,6 +160,10 @@ int tok_expect(token_type_t type)
 
     if (tok->type != type)
     {
+        char msg[MAX_ERROR_MSG];
+        snprintf(msg, MAX_ERROR_MSG, "expected '%s'", token_type_error_names[type]);
+
+        push_error(&tok->start, &tok->end, msg);
         return 0;
     }
 
@@ -177,6 +181,10 @@ int tok_expect_kw(const char *kw)
 
     if (strcmp(tok->text, kw) != 0)
     {
+        char msg[MAX_ERROR_MSG];
+        snprintf(msg, MAX_ERROR_MSG, "expected '%s'", kw);
+
+        push_error(&tok->start, &tok->end, msg);
         return 0;
     }
 

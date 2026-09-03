@@ -16,5 +16,8 @@ typedef struct _AST_node
     AST_node_type_t type;
     token_t *tok;
 
+    position_t start;
+    position_t end;
+
     array_t(struct _AST_node *) children;
 } AST_node_t;

@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "error.h"
+
 typedef enum
 {
     TOKTYPE_KEYWORD,
@@ -64,7 +66,13 @@ typedef struct
     token_type_t type;
     char *text;
     uint64_t intval;
+
+    position_t start;
+    position_t end;
 } token_t;
+
+extern const char *token_type_names[];
+extern const char *token_type_error_names[];
 
 void init_lexer(void);
 int lex(const char *text, token_t *out_tok);

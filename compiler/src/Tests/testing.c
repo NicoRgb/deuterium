@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "logger.h"
+#include "ansi.h"
 
 static test_t *create_test(test_func_t func, const char *name)
 {
@@ -167,16 +168,6 @@ static int terminal_width(void)
 
     return ws.ws_col;
 }
-
-#define ANSI_RESET "\033[0m"
-#define ANSI_BOLD "\033[1m"
-#define ANSI_DIM "\033[2m"
-
-#define ANSI_RED "\033[31m"
-#define ANSI_GREEN "\033[32m"
-#define ANSI_YELLOW "\033[33m"
-#define ANSI_CYAN "\033[36m"
-#define ANSI_GRAY "\033[90m"
 
 static const char *status_string(test_status_t status)
 {

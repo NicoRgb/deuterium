@@ -32,6 +32,18 @@ static void node_token(AST_node_t *node, token_t *tok)
     node->tok = tok;
 }
 
+static void node_start(AST_node_t *node, position_t *start)
+{
+    ASSERT(node);
+    node->start = *start;
+}
+
+static void node_end(AST_node_t *node, position_t *end)
+{
+    ASSERT(node);
+    node->end = *end;
+}
+
 AST_node_t *translation_unit(void);
 AST_node_t *function_definition(void);
 AST_node_t *type_specifier(void);
@@ -47,6 +59,10 @@ AST_node_t *translation_unit(void)
 {
     AST_node_t *node = create_AST_node(AST_NODE_TYPE_TRANSLATION_UNIT);
     node_push_child(node, function_definition());
+
+    node_start(node, &node->children[0]->start);
+    node_end(node, &node->children[0]->end);
+
     return node;
 }
 
@@ -68,6 +84,10 @@ AST_node_t *function_definition(void)
     tok_expect(TOKTYPE_RPAREN);
 
     compound_statement();
+
+    node_start(node, &node->children[0]->start);
+    node_end(node, &node->tok->end);
+
     return node;
 }
 
@@ -76,26 +96,29 @@ AST_node_t *type_specifier(void)
     AST_node_t *node = create_AST_node(AST_NODE_TYPE_BUILTIN_TYPE);
 
     token_t *type = tok_next();
-    if (type != TOKTYPE_KEYWORD || strcmp(type->text, "int") != 0)
+    if (type->type != TOKTYPE_KEYWORD || strcmp(type->text, "int") != 0)
     {
-        // TODO: error
+        push_error(&type->start, &type->end, "expected 'int'");
     }
 
     node_token(node, type);
+
+    node_start(node, &node->tok->start);
+    node_end(node, &node->tok->end);
+
     return node;
 }
 
 AST_node_t *parameter_list(void)
 {
-    token_t *type = tok_next();
-    if (type != TOKTYPE_KEYWORD || strcmp(type->text, "void") != 0)
-    {
-        // TODO: error
-    }
+    tok_expect_kw("void");
+    return NULL;
 }
 
 AST_node_t *compound_statement(void)
 {
     tok_expect(TOKTYPE_LBRACE);
     tok_expect(TOKTYPE_RBRACE);
+
+    return NULL;
 }
