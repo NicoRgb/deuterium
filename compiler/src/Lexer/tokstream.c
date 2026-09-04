@@ -108,11 +108,7 @@ token_t *tok_peek(void)
         exit(EXIT_FAILURE);
     }
 
-    if (!lex(g_text, tok))
-    {
-        return NULL;
-    }
-
+    lex(g_text, tok);
     queue_push(tok);
 
     return tok;
@@ -161,28 +157,7 @@ int tok_expect(token_type_t type)
     if (tok->type != type)
     {
         char msg[MAX_ERROR_MSG];
-        snprintf(msg, MAX_ERROR_MSG, "expected '%s'", token_type_error_names[type]);
-
-        push_error(&tok->start, &tok->end, msg);
-        return 0;
-    }
-
-    tok_next();
-    tok_free(tok);
-
-    return 1;
-}
-
-int tok_expect_kw(const char *kw)
-{
-    token_t *tok = tok_peek();
-    if (!tok || tok->type != TOKTYPE_KEYWORD)
-        return 0;
-
-    if (strcmp(tok->text, kw) != 0)
-    {
-        char msg[MAX_ERROR_MSG];
-        snprintf(msg, MAX_ERROR_MSG, "expected '%s'", kw);
+        snprintf(msg, MAX_ERROR_MSG, "expected %s", token_type_error_names[type]);
 
         push_error(&tok->start, &tok->end, msg);
         return 0;
@@ -209,7 +184,7 @@ void tok_free(token_t *tok)
     }
 #endif
 
-    if (tok->type == TOKTYPE_IDENTIFIER)
+    if (tok->type == TOKTYPE_IDENTIFIER || tok->type == TOKTYPE_INTLIT)
         free(tok->text);
 
     free(tok);

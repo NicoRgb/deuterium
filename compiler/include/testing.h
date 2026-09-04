@@ -21,15 +21,17 @@ typedef struct
     test_status_t status;
 } test_result_t;
 
-#define TEST_ASSERT_A(a)                                        \
-    do                                                          \
-    {                                                           \
-        if (!(a))                                               \
-        {                                                       \
-            test_result_t res = {.error_str = #a,               \
-                                 .status = TEST_STATUS_FAILED}; \
-            return res;                                         \
-        }                                                       \
+#define _STRINGIFY(x) #x
+#define _LINE_TO_STRING(line) _STRINGIFY(line)
+#define TEST_ASSERT_A(a)                                                                      \
+    do                                                                                        \
+    {                                                                                         \
+        if (!(a))                                                                             \
+        {                                                                                     \
+            test_result_t res = {.error_str = __FILE__ ":" _LINE_TO_STRING(__LINE__) ": " #a, \
+                                 .status = TEST_STATUS_FAILED};                               \
+            return res;                                                                       \
+        }                                                                                     \
     } while (0)
 
 #define TEST_ASSERT_AB(a, b)                                    \

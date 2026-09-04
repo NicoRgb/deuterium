@@ -96,7 +96,7 @@ AST_node_t *type_specifier(void)
     AST_node_t *node = create_AST_node(AST_NODE_TYPE_BUILTIN_TYPE);
 
     token_t *type = tok_next();
-    if (type->type != TOKTYPE_KEYWORD || strcmp(type->text, "int") != 0)
+    if (type->type != TOKTYPE_KW_INT)
     {
         push_error(&type->start, &type->end, "expected 'int'");
     }
@@ -111,7 +111,7 @@ AST_node_t *type_specifier(void)
 
 AST_node_t *parameter_list(void)
 {
-    tok_expect_kw("void");
+    tok_expect(TOKTYPE_KW_VOID);
     return NULL;
 }
 

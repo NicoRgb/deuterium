@@ -46,7 +46,7 @@ static void print_AST_node(AST_node_t *node, uint16_t indent)
 
 void print_token(token_t *token)
 {
-    if (token->type == TOKTYPE_KEYWORD || token->type == TOKTYPE_IDENTIFIER)
+    if (token->type == TOKTYPE_IDENTIFIER || token->type == TOKTYPE_INTLIT)
         printf("%s(%s)\n", token_type_names[token->type], token->text);
     else
         printf("%s", token_type_names[token->type]);
