@@ -2,77 +2,38 @@
 #include "array.h"
 
 #include <string.h>
+#include <stdarg.h>
 
-#define TOKEN_QUEUE_INITIAL_CAPACITY 8
-
-token_t **token_queue = NULL;
-size_t queue_size = 0;
-size_t queue_capacity = 0;
-
-static void queue_init(void)
-{
-    queue_capacity = TOKEN_QUEUE_INITIAL_CAPACITY;
-    queue_size = 0;
-    token_queue = malloc(queue_capacity * sizeof(token_t *));
-    if (!token_queue)
-    {
-        log_error("failed to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-}
-
-static void queue_push(token_t *tok)
-{
-    ASSERT(tok);
-    ASSERT(token_queue);
-
-    if (queue_size >= queue_capacity)
-    {
-        queue_capacity *= 2;
-
-        token_queue = realloc(token_queue, queue_capacity * sizeof(token_t *));
-        if (!token_queue)
-        {
-            log_error("failed to allocate memory");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    token_queue[queue_size++] = tok;
-}
-
-static token_t *queue_pop(void)
-{
-    ASSERT(token_queue);
-    ASSERT(queue_size > 0);
-
-    token_t *res = token_queue[0];
-
-    size_t i = --queue_size;
-    while (i--)
-    {
-        res[i] = res[i + 1];
-    }
-
-    return res;
-}
+array_t(token_t *) token_buffer = NULL_ARRAY;
+size_t token_head_index = 0;
 
 const char *g_text = NULL;
 
 void tokstream_init(const char *text)
 {
     g_text = text;
+    token_head_index = 0;
+    array_create(token_t *, token_buffer);
+}
+
+size_t tokstream_checkpoint(void)
+{
+    return token_head_index;
+}
+
+void tokstream_restore(size_t checkpoint)
+{
+    token_head_index = checkpoint;
 }
 
 token_t *tok_next(void)
 {
     ASSERT(g_text);
-    if (!token_queue)
-        queue_init();
+    ASSERT(token_buffer);
 
-    if (queue_size > 0)
+    if (array_size(token_buffer) > token_head_index)
     {
-        return queue_pop();
+        return token_buffer[token_head_index++];
     }
 
     token_t *tok = malloc(sizeof(token_t));
@@ -87,18 +48,20 @@ token_t *tok_next(void)
         return NULL;
     }
 
+    array_push(token_buffer, tok);
+    token_head_index++;
+
     return tok;
 }
 
 token_t *tok_peek(void)
 {
     ASSERT(g_text);
-    if (!token_queue)
-        queue_init();
+    ASSERT(token_buffer);
 
-    if (queue_size > 0)
+    if (array_size(token_buffer) > token_head_index)
     {
-        return token_queue[0];
+        return token_buffer[token_head_index];
     }
 
     token_t *tok = malloc(sizeof(token_t));
@@ -109,7 +72,7 @@ token_t *tok_peek(void)
     }
 
     lex(g_text, tok);
-    queue_push(tok);
+    array_push(token_buffer, tok);
 
     return tok;
 }
@@ -117,17 +80,16 @@ token_t *tok_peek(void)
 token_t *tok_peek_nth(size_t n)
 {
     ASSERT(g_text);
-    if (!token_queue)
-        queue_init();
+    ASSERT(token_buffer);
 
-    if (queue_size >= n)
+    if (array_size(token_buffer) > token_head_index + n - 1)
     {
-        return token_queue[n];
+        return token_buffer[token_head_index + n - 1];
     }
 
     token_t *res = NULL;
 
-    for (size_t i = queue_size; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         token_t *tok = malloc(sizeof(token_t));
         if (!tok)
@@ -141,14 +103,14 @@ token_t *tok_peek_nth(size_t n)
             return NULL;
         }
 
-        queue_push(tok);
+        array_push(token_buffer, tok);
         res = tok;
     }
 
     return res;
 }
 
-int tok_expect(token_type_t type)
+token_t *tok_expect(token_type_t type)
 {
     token_t *tok = tok_peek();
     if (!tok)
@@ -160,13 +122,41 @@ int tok_expect(token_type_t type)
         snprintf(msg, MAX_ERROR_MSG, "expected %s", token_type_error_names[type]);
 
         push_error(&tok->start, &tok->end, msg);
-        return 0;
+        return NULL;
     }
 
-    tok_next();
-    tok_free(tok);
+    return tok_next();
+}
 
-    return 1;
+token_t *tok_expect_n(size_t n, ...)
+{
+    token_t *tok = tok_peek();
+    if (!tok)
+        return 0;
+
+    char msg[MAX_ERROR_MSG];
+    strcpy(msg, "expected ");
+
+    va_list args;
+    va_start(args, n);
+    for (size_t i = 0; i < n; i++)
+    {
+        token_type_t type = va_arg(args, token_type_t);
+        if (tok->type == type)
+        {
+            va_end(args);
+            return tok_next();
+        }
+
+        size_t _n = MAX_ERROR_MSG - strlen(msg) - 1;
+        strncat(msg, token_type_error_names[type], _n);
+        if (i < n - 1)
+            strncat(msg, ", ", _n);
+    }
+    va_end(args);
+
+    push_error(&tok->start, &tok->end, msg);
+    return NULL;
 }
 
 void tok_free(token_t *tok)
@@ -174,11 +164,11 @@ void tok_free(token_t *tok)
     ASSERT(tok);
 
 #ifndef NDEBUG
-    for (size_t i = 0; i < queue_size; i++)
+    for (size_t i = 0; i < array_size(token_buffer); i++)
     {
-        if (token_queue[i] == tok)
+        if (token_buffer[i] == tok)
         {
-            log_error("tok_free called on token still in queue");
+            log_error("tok_free called on token still in buffer");
             exit(EXIT_FAILURE);
         }
     }
