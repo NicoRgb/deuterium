@@ -1,1 +1,4 @@
-func(1 <= 2 ? &abc[0].text : 0, 1, 2) 1 + 2 3 * 4 x = 42
+int main(int a, int b)
+{
+    func(1 <= 2 ? &abc[0].text : 0, 1, 2);
+}

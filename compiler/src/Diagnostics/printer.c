@@ -15,7 +15,11 @@ static const char *AST_node_type_to_string(AST_node_type_t type)
         return "FUNCTION_DEFINITION";
     case AST_NODE_TYPE_DECLARATION:
         return "DECLARATION";
+    case AST_NODE_TYPE_PARAMETER:
+        return "PARAMETER";
 
+    case AST_NODE_TYPE_INIT_DECLARATOR:
+        return "AST_NODE_TYPE_INIT_DECLARATOR";
     case AST_NODE_TYPE_BUILTIN_TYPE:
         return "BUILTIN_TYPE";
     case AST_NODE_TYPE_DECLARATOR:

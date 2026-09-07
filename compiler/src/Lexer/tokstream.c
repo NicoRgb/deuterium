@@ -31,88 +31,54 @@ token_t *tok_next(void)
     ASSERT(g_text);
     ASSERT(token_buffer);
 
-    if (array_size(token_buffer) > token_head_index)
+    if (array_size(token_buffer) <= token_head_index)
     {
-        return token_buffer[token_head_index++];
-    }
-
-    token_t *tok = malloc(sizeof(token_t));
-    if (!tok)
-    {
-        log_error("failed to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-
-    if (!lex(g_text, tok))
-    {
-        return NULL;
-    }
-
-    array_push(token_buffer, tok);
-    token_head_index++;
-
-    return tok;
-}
-
-token_t *tok_peek(void)
-{
-    ASSERT(g_text);
-    ASSERT(token_buffer);
-
-    if (array_size(token_buffer) > token_head_index)
-    {
-        return token_buffer[token_head_index];
-    }
-
-    token_t *tok = malloc(sizeof(token_t));
-    if (!tok)
-    {
-        log_error("failed to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-
-    lex(g_text, tok);
-    array_push(token_buffer, tok);
-
-    return tok;
-}
-
-token_t *tok_peek_nth(size_t n)
-{
-    ASSERT(g_text);
-    ASSERT(token_buffer);
-
-    if (array_size(token_buffer) > token_head_index + n - 1)
-    {
-        return token_buffer[token_head_index + n - 1];
-    }
-
-    token_t *res = NULL;
-
-    for (size_t i = 0; i < n; i++)
-    {
-        token_t *tok = malloc(sizeof(token_t));
+        token_t *tok = malloc(sizeof(*tok));
         if (!tok)
         {
             log_error("failed to allocate memory");
             exit(EXIT_FAILURE);
         }
 
-        if (!lex(g_text, tok))
-        {
-            return NULL;
-        }
-
+        lex(g_text, tok);
         array_push(token_buffer, tok);
-        res = tok;
     }
 
-    return res;
+    return token_buffer[token_head_index++];
+}
+
+token_t *tok_peek(void)
+{
+    return tok_peek_nth(1);
+}
+
+token_t *tok_peek_nth(size_t n)
+{
+    ASSERT(g_text);
+    ASSERT(token_buffer);
+    ASSERT(n >= 1);
+
+    size_t i = token_head_index + n - 1;
+
+    while (array_size(token_buffer) <= i)
+    {
+        token_t *tok = malloc(sizeof(*tok));
+        if (!tok)
+        {
+            log_error("failed to allocate memory");
+            exit(EXIT_FAILURE);
+        }
+
+        lex(g_text, tok);
+        array_push(token_buffer, tok);
+    }
+
+    return token_buffer[i];
 }
 
 token_t *tok_expect(token_type_t type)
 {
-    token_t *tok = tok_peek();
+    token_t *tok = tok_next();
     if (!tok)
         return 0;
 
@@ -125,12 +91,12 @@ token_t *tok_expect(token_type_t type)
         return NULL;
     }
 
-    return tok_next();
+    return tok;
 }
 
 token_t *tok_expect_n(size_t n, ...)
 {
-    token_t *tok = tok_peek();
+    token_t *tok = tok_next();
     if (!tok)
         return 0;
 
@@ -145,7 +111,7 @@ token_t *tok_expect_n(size_t n, ...)
         if (tok->type == type)
         {
             va_end(args);
-            return tok_next();
+            return tok;
         }
 
         size_t _n = MAX_ERROR_MSG - strlen(msg) - 1;

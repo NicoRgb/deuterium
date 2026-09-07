@@ -5,6 +5,26 @@
 #include <string.h>
 #include <stdbool.h>
 
+AST_node_t *parse(void);
+AST_node_t *translation_unit(void);
+AST_node_t *external_declaration(void);
+AST_node_t *function_definition(void);
+AST_node_t *declaration(void);
+AST_node_t *init_declarator(void);
+AST_node_t *initializer(void);
+AST_node_t *type_specifier(void);
+AST_node_t *declarator(void);
+AST_node_t *direct_declarator(void);
+AST_node_t *pointer(void);
+AST_node_t *parameter_declaration(void);
+AST_node_t *constant_expression(void);
+AST_node_t *statement(void);
+AST_node_t *compound_statement(void);
+AST_node_t *block_item(void);
+AST_node_t *expression_statement(void);
+AST_node_t *selection_statement(void);
+AST_node_t *iteration_statement(void);
+AST_node_t *jump_statement(void);
 AST_node_t *expression(void);
 AST_node_t *assignment_expression(void);
 AST_node_t *conditional_expression(void);
@@ -22,7 +42,8 @@ AST_node_t *unary_expression(void);
 AST_node_t *postfix_expression(void);
 AST_node_t *argument_expression_list_opt(void);
 AST_node_t *primary_expression(void);
-AST_node_t *translation_unit(void);
+
+static void parameter_list(AST_node_t *node);
 
 static AST_node_t *create_AST_node(AST_node_type_t type)
 {
@@ -72,9 +93,9 @@ AST_node_t *parse(void)
 AST_node_t *translation_unit(void)
 {
     AST_node_t *node = create_AST_node(AST_NODE_TYPE_TRANSLATION_UNIT);
+
     while (tok_peek()->type != TOKTYPE_EOF)
-        // node_push_child(node, external_declaration());
-        node_push_child(node, expression());
+        node_push_child(node, external_declaration());
 
     if (has_errors())
         return NULL;
@@ -89,6 +110,202 @@ AST_node_t *translation_unit(void)
         node_end(node, &(node->children[array_size(node->children) - 1])->end);
     }
 
+    return node;
+}
+
+AST_node_t *external_declaration(void)
+{
+    size_t checkpoint = tokstream_checkpoint();
+    type_specifier();
+    declarator();
+
+    if (tok_peek()->type == TOKTYPE_EQUAL)
+    {
+        tokstream_restore(checkpoint);
+        return declaration();
+    }
+
+    tokstream_restore(checkpoint);
+    return function_definition();
+}
+
+AST_node_t *function_definition(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_FUNCTION_DEFINITION);
+    node_push_child(node, type_specifier());
+    node_push_child(node, declarator());
+    node_push_child(node, compound_statement());
+    return node;
+}
+
+static bool is_declaration_start(token_type_t type)
+{
+    switch (type)
+    {
+    case TOKTYPE_KW_INT:
+    case TOKTYPE_KW_VOID:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+AST_node_t *type_specifier(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_BUILTIN_TYPE);
+    node_push_token(node, tok_expect_n(2, TOKTYPE_KW_INT, TOKTYPE_KW_VOID));
+    return node;
+}
+
+AST_node_t *declaration(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_DECLARATION);
+    node_push_child(node, type_specifier());
+    node_push_child(node, init_declarator());
+
+    while (tok_peek()->type == TOKTYPE_COMMA)
+    {
+        tok_next();
+        node_push_child(node, init_declarator());
+    }
+
+    tok_expect(TOKTYPE_SEMICOLON);
+
+    return node;
+}
+
+AST_node_t *init_declarator(void)
+{
+    AST_node_t *node = declarator();
+    if (tok_peek()->type == TOKTYPE_EQUAL)
+    {
+        tok_next();
+
+        AST_node_t *binop = create_AST_node(AST_NODE_TYPE_BINARY_OPERATION);
+        node_push_child(binop, node);
+        node_push_child(binop, initializer());
+
+        node = binop;
+    }
+
+    return node;
+}
+
+AST_node_t *initializer(void)
+{
+    return assignment_expression();
+}
+
+AST_node_t *direct_declarator(void)
+{
+    AST_node_t *node;
+
+    if (tok_peek()->type == TOKTYPE_IDENTIFIER)
+    {
+        node = create_AST_node(AST_NODE_TYPE_DECLARATOR);
+        node_push_token(node, tok_next());
+    }
+    else if (tok_peek()->type == TOKTYPE_LPAREN)
+    {
+        tok_next();
+        node = declarator();
+        tok_expect(TOKTYPE_RPAREN);
+    }
+    else
+    {
+        token_t *tok = tok_next();
+        push_error(&tok->start, &tok->end, "expected identifier or '('");
+        return NULL;
+    }
+
+    while (true)
+    {
+        if (tok_peek()->type == TOKTYPE_LBRACKET)
+        {
+            tok_next();
+
+            AST_node_t *array = create_AST_node(AST_NODE_TYPE_ARRAY_TYPE);
+
+            node_push_child(array, node);
+
+            if (tok_peek()->type != TOKTYPE_RBRACKET)
+                node_push_child(array, constant_expression());
+
+            tok_expect(TOKTYPE_RBRACKET);
+
+            node = array;
+        }
+        else if (tok_peek()->type == TOKTYPE_LPAREN)
+        {
+            tok_next();
+
+            AST_node_t *function = create_AST_node(AST_NODE_TYPE_FUNCTION_TYPE);
+
+            node_push_child(function, node);
+
+            if (tok_peek()->type != TOKTYPE_RPAREN)
+                parameter_list(function);
+
+            tok_expect(TOKTYPE_RPAREN);
+
+            node = function;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return node;
+}
+
+AST_node_t *declarator(void)
+{
+    AST_node_t *node = direct_declarator();
+
+    if (tok_peek()->type == TOKTYPE_STAR)
+    {
+        AST_node_t *pointer_node = pointer();
+        AST_node_t *p = pointer_node;
+
+        while (array_size(p->children) != 0)
+            p = p->children[0];
+
+        node_push_child(p, node);
+        node = pointer_node;
+    }
+
+    return node;
+}
+
+AST_node_t *pointer(void)
+{
+    tok_expect(TOKTYPE_STAR);
+
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_POINTER_TYPE);
+
+    if (tok_peek()->type == TOKTYPE_STAR)
+        node_push_child(node, pointer());
+
+    return node;
+}
+
+static void parameter_list(AST_node_t *node)
+{
+    node_push_child(node, parameter_declaration());
+    while (tok_peek()->type == TOKTYPE_COMMA)
+    {
+        tok_next();
+        node_push_child(node, parameter_declaration());
+    }
+}
+
+AST_node_t *parameter_declaration(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_PARAMETER);
+    node_push_child(node, type_specifier());
+    node_push_child(node, declarator());
     return node;
 }
 
@@ -163,10 +380,15 @@ AST_node_t *postfix_expression(void)
             break;
 
         case TOKTYPE_LPAREN:
+        {
             postfix->type = AST_NODE_TYPE_FUNCTION_CALL;
-            node_push_child(postfix, argument_expression_list_opt());
+            AST_node_t *args = argument_expression_list_opt();
+            if (args)
+                node_push_child(postfix, args);
+
             tok_expect(TOKTYPE_RPAREN);
             break;
+        }
 
         case TOKTYPE_DOT:
             postfix->type = AST_NODE_TYPE_MEMBER_ACCESS;
@@ -247,6 +469,11 @@ AST_node_t *primary_expression(void)
         return NULL;
     }
     }
+}
+
+AST_node_t *constant_expression(void)
+{
+    return conditional_expression();
 }
 
 AST_node_t *expression(void)
@@ -450,5 +677,137 @@ AST_node_t *multiplicative_expression(void)
         node = expr;
     }
 
+    return node;
+}
+
+AST_node_t *statement(void)
+{
+    token_t *tok = tok_peek();
+    if (tok->type == TOKTYPE_LBRACE)
+        return compound_statement();
+
+    else if (tok->type == TOKTYPE_KW_IF)
+        return selection_statement();
+
+    else if (tok->type == TOKTYPE_KW_WHILE || tok->type == TOKTYPE_KW_FOR)
+        return iteration_statement();
+
+    else if (tok->type == TOKTYPE_KW_RETURN)
+        return jump_statement();
+
+    return expression_statement();
+}
+
+AST_node_t *compound_statement(void)
+{
+    tok_expect(TOKTYPE_LBRACE);
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_COMPOUND_STATEMENT);
+
+    while (tok_peek()->type != TOKTYPE_RBRACE)
+    {
+        if (tok_peek()->type == TOKTYPE_EOF)
+        {
+            push_error(&tok_peek()->start, &tok_peek()->end, "unexpected EOF");
+            return node;
+        }
+
+        node_push_child(node, block_item());
+    }
+
+    tok_next();
+    return node;
+}
+
+AST_node_t *block_item(void)
+{
+    if (is_declaration_start(tok_peek()->type))
+        return declaration();
+    return statement();
+}
+
+AST_node_t *expression_statement(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_EXPRESSION_STATEMENT);
+
+    if (tok_peek()->type == TOKTYPE_SEMICOLON)
+    {
+        tok_next();
+        return node;
+    }
+
+    node_push_child(node, expression());
+    tok_expect(TOKTYPE_SEMICOLON);
+    return node;
+}
+
+AST_node_t *selection_statement(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_IF_STATEMENT);
+
+    tok_expect(TOKTYPE_KW_IF);
+    tok_expect(TOKTYPE_LPAREN);
+    node_push_child(node, expression());
+    tok_expect(TOKTYPE_RPAREN);
+    node_push_child(node, statement());
+
+    if (tok_peek()->type == TOKTYPE_KW_ELSE)
+    {
+        tok_next();
+        node_push_child(node, statement());
+    }
+
+    return node;
+}
+
+AST_node_t *iteration_statement(void)
+{
+    token_t *tok = tok_peek();
+    if (tok->type == TOKTYPE_KW_WHILE)
+    {
+        AST_node_t *node = create_AST_node(AST_NODE_TYPE_WHILE_STATEMENT);
+        tok_next();
+        tok_expect(TOKTYPE_LPAREN);
+        node_push_child(node, expression());
+        tok_expect(TOKTYPE_RPAREN);
+        node_push_child(node, statement());
+        return node;
+    }
+
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_FOR_STATEMENT);
+
+    tok_expect(TOKTYPE_KW_FOR);
+    tok_expect(TOKTYPE_LPAREN);
+    if (is_declaration_start(tok_peek()->type))
+    {
+        node_push_child(node, declaration());
+    }
+    else
+    {
+        node_push_child(node, expression_statement());
+    }
+
+    node_push_child(node, expression_statement());
+    if (tok_peek()->type != TOKTYPE_RPAREN)
+        node_push_child(node, expression());
+
+    tok_expect(TOKTYPE_RPAREN);
+    node_push_child(node, statement());
+
+    return node;
+}
+
+AST_node_t *jump_statement(void)
+{
+    AST_node_t *node = create_AST_node(AST_NODE_TYPE_RETURN_STATEMENT);
+
+    tok_expect(TOKTYPE_KW_RETURN);
+    if (tok_peek()->type == TOKTYPE_SEMICOLON)
+    {
+        tok_next();
+        return node;
+    }
+
+    node_push_child(node, expression());
+    tok_expect(TOKTYPE_SEMICOLON);
     return node;
 }

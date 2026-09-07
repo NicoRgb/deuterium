@@ -11,10 +11,6 @@ function_definition
     : type_specifier declarator compound_statement
     ;
 
-function_declaration
-    : type_specifier declarator ';'
-    ;
-
 type_specifier
     : KW_INT
     | KW_VOID
