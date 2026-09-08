@@ -299,7 +299,15 @@ static void process_compound_statement(AST_node_t *node)
         if (node->children[i] == NULL)
             continue;
 
-        process_AST_node(node->children[i]);
+        AST_node_t *child = node->children[i];
+        if (child->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
+        {
+            begin_scope();
+            process_AST_node(child);
+            end_scope();
+        }
+        else
+            process_AST_node(child);
     }
 }
 
@@ -319,7 +327,32 @@ static void process_AST_node(AST_node_t *node)
         process_compound_statement(node);
         break;
 
+    case AST_NODE_TYPE_EXPRESSION_STATEMENT:
+        // TODO: check types
+        break;
+
+    case AST_NODE_TYPE_IF_STATEMENT:
+    case AST_NODE_TYPE_WHILE_STATEMENT:
+    case AST_NODE_TYPE_FOR_STATEMENT:
+    case AST_NODE_TYPE_RETURN_STATEMENT:
+    {
+        if (array_size(node->children) == 0)
+            break;
+
+        AST_node_t *stmt = node->children[array_size(node->children) - 1];
+        if (stmt->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
+        {
+            begin_scope();
+            process_AST_node(stmt);
+            end_scope();
+        }
+        else
+            process_AST_node(stmt);
+        break;
+    }
+
     default:
+        ASSERT(false);
         break;
     }
 }
@@ -577,10 +610,4 @@ symbol_const_value_t eval_constant_expression(AST_node_t *node)
     }
 
     return result;
-}
-
-type_t *eval_expression_type(AST_node_t *node)
-{
-    (void)node;
-    return NULL;
 }
