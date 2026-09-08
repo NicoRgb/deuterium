@@ -7,4 +7,9 @@ int main(int *d[20], int e)
 {
     int b = 2;
     b = 3;
+
+    if (b)
+    {
+        int l = 3;
+    }
 }
