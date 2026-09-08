@@ -7,7 +7,7 @@
 
 #include "logger.h"
 
-#define ARRAY_INITIAL_CAPACITY 5
+#define ARRAY_INITIAL_CAPACITY 20
 
 typedef struct
 {
@@ -77,3 +77,38 @@ typedef struct
     } while (0)
 
 #define array_size(array) ((__array_metadata_t *)((uintptr_t)array - sizeof(__array_metadata_t)))->size
+
+#define static_array_t(type) type *
+#define NULL_ARRAY NULL
+
+#define static_array_create(type, cap, arr)                                                 \
+    do                                                                                      \
+    {                                                                                       \
+        __array_metadata_t *_res = malloc(sizeof(type) * cap + sizeof(__array_metadata_t)); \
+        if (!_res)                                                                          \
+        {                                                                                   \
+            log_error("failed to allocate memory");                                         \
+            exit(EXIT_FAILURE);                                                             \
+        }                                                                                   \
+                                                                                            \
+        _res->size = 0;                                                                     \
+        _res->capacity = cap;                                                               \
+                                                                                            \
+        arr = (type *)((uintptr_t)_res + sizeof(__array_metadata_t));                       \
+    } while (0)
+
+#define static_array_free(array) array_free(array)
+
+#define static_array_push(array, element)                                                                     \
+    do                                                                                                        \
+    {                                                                                                         \
+        ASSERT(array);                                                                                        \
+        __array_metadata_t *metadata = (__array_metadata_t *)((uintptr_t)array - sizeof(__array_metadata_t)); \
+        ASSERT(metadata->capacity != 0);                                                                      \
+        ASSERT(metadata->size <= metadata->capacity);                                                         \
+        size_t index = metadata->size++;                                                                      \
+        array[index] = element;                                                                               \
+    } while (0)
+
+#define static_array_clear(array) array_clear(array)
+#define static_array_size(array) array_size(array)

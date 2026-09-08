@@ -4,6 +4,7 @@
 #include "error.h"
 #include "printer.h"
 #include "parser.h"
+#include "sema.h"
 
 int config_initialized = 0;
 compiler_config_t g_config;
@@ -77,6 +78,23 @@ static int compile_unit(const char *filepath)
     }
 
     free(content);
+
+    if (!AST)
+    {
+        return result;
+    }
+
+    create_scopes(AST);
+
+    if (has_errors())
+    {
+        result = 0;
+        emit_errors();
+    }
+
+    print_scope_tree(get_global_scope());
+
+    free_scopes();
 
     return result;
 }

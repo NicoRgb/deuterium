@@ -119,7 +119,8 @@ AST_node_t *external_declaration(void)
     type_specifier();
     declarator();
 
-    if (tok_peek()->type == TOKTYPE_EQUAL)
+    token_t *tok = tok_peek();
+    if (tok->type == TOKTYPE_EQUAL || tok->type == TOKTYPE_SEMICOLON)
     {
         tokstream_restore(checkpoint);
         return declaration();
@@ -262,21 +263,28 @@ AST_node_t *direct_declarator(void)
 
 AST_node_t *declarator(void)
 {
-    AST_node_t *node = direct_declarator();
+    AST_node_t *node = NULL;
+    AST_node_t *p = NULL;
 
     if (tok_peek()->type == TOKTYPE_STAR)
     {
         AST_node_t *pointer_node = pointer();
-        AST_node_t *p = pointer_node;
+        p = pointer_node;
 
         while (array_size(p->children) != 0)
             p = p->children[0];
 
-        node_push_child(p, node);
         node = pointer_node;
     }
 
-    return node;
+    if (node)
+    {
+        ASSERT(p);
+        node_push_child(p, direct_declarator());
+        return node;
+    }
+
+    return direct_declarator();
 }
 
 AST_node_t *pointer(void)

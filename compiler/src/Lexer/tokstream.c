@@ -78,20 +78,7 @@ token_t *tok_peek_nth(size_t n)
 
 token_t *tok_expect(token_type_t type)
 {
-    token_t *tok = tok_next();
-    if (!tok)
-        return 0;
-
-    if (tok->type != type)
-    {
-        char msg[MAX_ERROR_MSG];
-        snprintf(msg, MAX_ERROR_MSG, "expected %s", token_type_error_names[type]);
-
-        push_error(&tok->start, &tok->end, msg);
-        return NULL;
-    }
-
-    return tok;
+    return tok_expect_n(1, type);
 }
 
 token_t *tok_expect_n(size_t n, ...)
@@ -116,12 +103,24 @@ token_t *tok_expect_n(size_t n, ...)
 
         size_t _n = MAX_ERROR_MSG - strlen(msg) - 1;
         strncat(msg, token_type_error_names[type], _n);
+
         if (i < n - 1)
             strncat(msg, ", ", _n);
     }
     va_end(args);
 
-    push_error(&tok->start, &tok->end, msg);
+    // display previous tokens position
+    position_t start = {.col = 0, .row = 0};
+    position_t end = {.col = 0, .row = 0};
+
+    if (token_head_index >= 2)
+    {
+        token_t *prev_tok = token_buffer[token_head_index - 2];
+        start = prev_tok->start;
+        end = prev_tok->end;
+    }
+
+    push_error(&start, &end, msg);
     return NULL;
 }
 

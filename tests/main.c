@@ -1,4 +1,8 @@
-int main(int a, int b)
+int a = 5 + 2;
+int c[6 * 2];
+
+int main(int d, int e)
 {
-    func(1 <= 2 ? &abc[0].text : 0, 1, 2);
+    int b = 2;
+    b = 3;
 }

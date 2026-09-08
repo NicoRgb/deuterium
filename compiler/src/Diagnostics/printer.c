@@ -1,5 +1,8 @@
 #include "parser.h"
 #include "logger.h"
+#include "printer.h"
+
+#include <inttypes.h>
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -141,4 +144,124 @@ void print_AST(const AST_node_t *root)
 
     bool has_sibling[256] = {0};
     print_ast_node(root, has_sibling, 0);
+}
+
+static const char *symbol_kind_to_string(symbol_kind_t kind)
+{
+    switch (kind)
+    {
+    case SYMBOL_VARIABLE:
+        return "VARIABLE";
+    case SYMBOL_FUNCTION:
+        return "FUNCTION";
+    case SYMBOL_PARAMETER:
+        return "PARAMETER";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static void print_type(const type_t *type)
+{
+    if (!type)
+    {
+        printf("<null>");
+        return;
+    }
+    switch (type->kind)
+    {
+    case TYPE_VOID:
+        printf("void");
+        break;
+    case TYPE_INT:
+        printf("int");
+        break;
+    case TYPE_INTLIT:
+        printf("intlit");
+        break;
+    case TYPE_POINTER:
+        print_type(type->pointer.dest);
+        printf("*");
+        break;
+    case TYPE_ARRAY:
+        print_type(type->array.element);
+        printf("[%zu]", type->array.size);
+        break;
+    case TYPE_FUNCTION:
+    {
+        printf("(");
+        size_t count = array_size(type->function.parameter_types);
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (i != 0)
+                printf(", ");
+            print_type(type->function.parameter_types[i]);
+        }
+        printf(") -> ");
+        print_type(type->function.return_type);
+        break;
+    }
+    default:
+        printf("<unknown type>");
+        break;
+    }
+}
+
+static void print_symbol_value(const symbol_t *symbol)
+{
+    if (!symbol->value.is_valid)
+        return;
+
+    printf(" = ");
+    switch (symbol->value.type ? symbol->value.type->kind : TYPE_VOID)
+    {
+    case TYPE_INT:
+    case TYPE_INTLIT:
+        printf("%" PRId64, symbol->value.val);
+        break;
+    default:
+        printf("<value>");
+        break;
+    }
+}
+
+static void print_scope(const scope_t *scope, bool *has_sibling, size_t depth)
+{
+    if (!scope)
+    {
+        print_indent(has_sibling, depth);
+        printf("NULL SCOPE\n");
+        return;
+    }
+    print_indent(has_sibling, depth);
+    printf("SCOPE\n");
+    size_t symbol_count = array_size(scope->symbols);
+    size_t child_count = array_size(scope->children);
+    for (size_t i = 0; i < symbol_count; ++i)
+    {
+        const symbol_t *symbol = &scope->symbols[i];
+        bool sibling = (i + 1 < symbol_count) || (i + 1 == symbol_count && child_count > 0);
+        has_sibling[depth] = sibling;
+        print_indent(has_sibling, depth);
+        printf("%s %s : ", symbol_kind_to_string(symbol->kind), symbol->name);
+        print_type(symbol->type);
+        print_symbol_value(symbol);
+        printf("\n");
+    }
+    for (size_t i = 0; i < child_count; ++i)
+    {
+        has_sibling[depth] = i + 1 < child_count;
+        print_scope(scope->children[i], has_sibling, depth + 1);
+    }
+}
+
+void print_scope_tree(const scope_t *root)
+{
+    if (!root)
+    {
+        printf("(null scope)\n");
+        return;
+    }
+    bool has_sibling[256] = {0};
+    print_scope(root, has_sibling, 0);
 }
