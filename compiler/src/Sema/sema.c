@@ -1,6 +1,13 @@
 #include "sema.h"
 #include "strdup.h"
 
+static size_t max(size_t a, size_t b)
+{
+    if (a > b)
+        return a;
+    return b;
+}
+
 static type_t *create_type(void)
 {
     type_t *res = malloc(sizeof(type_t));
@@ -98,7 +105,7 @@ static type_t *process_builtin_type(AST_node_t *node)
     return res;
 }
 
-static type_t *process_type(AST_node_t *node)
+static type_t *process_simple_type(AST_node_t *node)
 {
     ASSERT(node);
 
@@ -112,6 +119,26 @@ static type_t *process_type(AST_node_t *node)
     }
 }
 
+static type_t *process_pointer_type(AST_node_t *node)
+{
+    ASSERT(node);
+
+    type_t *type = process_simple_type(node->children[0]);
+    AST_node_t *current_node = node->children[1];
+
+    while (current_node->type == AST_NODE_TYPE_POINTER_TYPE || current_node->type == AST_NODE_TYPE_ARRAY_TYPE)
+    {
+        type_t *t = create_type();
+        t->kind = TYPE_POINTER;
+        t->pointer.dest = type;
+
+        type = t;
+        current_node = current_node->children[0];
+    }
+
+    return type;
+}
+
 static void process_declaration(AST_node_t *declaration)
 {
     ASSERT(declaration);
@@ -120,19 +147,35 @@ static void process_declaration(AST_node_t *declaration)
     sym.kind = SYMBOL_VARIABLE;
     sym.declaration = declaration;
 
-    type_t *type = process_type(declaration->children[0]);
+    type_t *type = process_simple_type(declaration->children[0]);
 
     AST_node_t *declarator = declaration->children[1];
 
     symbol_const_value_t sym_val; // TODO: default values
     sym_val.is_valid = false;
 
-    while (declarator->type == AST_NODE_TYPE_BINARY_OPERATION || declarator->type == AST_NODE_TYPE_POINTER_TYPE || declarator->type == AST_NODE_TYPE_ARRAY_TYPE)
+    while (declarator->type == AST_NODE_TYPE_BINARY_OPERATION || declarator->type == AST_NODE_TYPE_FUNCTION_TYPE || declarator->type == AST_NODE_TYPE_POINTER_TYPE || declarator->type == AST_NODE_TYPE_ARRAY_TYPE)
     {
         if (declarator->type == AST_NODE_TYPE_BINARY_OPERATION)
         {
-            sym_val.is_valid = true;
             sym_val = eval_constant_expression(declarator->children[1]);
+        }
+        else if (declarator->type == AST_NODE_TYPE_FUNCTION_TYPE)
+        {
+            ASSERT(array_size(declarator->children) >= 1);
+            sym.kind = SYMBOL_FUNCTION;
+
+            type_t *t = create_type();
+            t->kind = TYPE_FUNCTION;
+            t->function.return_type = type;
+            static_array_create(type_t *, max(array_size(declarator->children) - 1, 1), t->function.parameter_types);
+
+            for (size_t i = 1; i < array_size(declarator->children); i++)
+            {
+                array_push(t->function.parameter_types, process_pointer_type(declarator->children[i]));
+            }
+
+            type = t;
         }
         else if (declarator->type == AST_NODE_TYPE_POINTER_TYPE)
         {
@@ -153,6 +196,9 @@ static void process_declaration(AST_node_t *declaration)
             {
                 // TODO: VAR?
 
+                if (size_val.is_valid)
+                    free_type(size_val.type);
+
                 if (sym_val.is_valid)
                     free_type(sym_val.type);
 
@@ -161,6 +207,7 @@ static void process_declaration(AST_node_t *declaration)
                 push_error(&declaration->start, &declaration->end, "invalid size for array");
                 return;
             }
+            free_type(size_val.type);
             t->array.size = size_val.val;
 
             type = t;
@@ -190,6 +237,111 @@ static void process_declaration(AST_node_t *declaration)
     symbol_insert(sym);
 }
 
+static void process_parameter(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(node->type == AST_NODE_TYPE_PARAMETER);
+
+    symbol_t sym;
+    sym.kind = SYMBOL_PARAMETER;
+    sym.declaration = node;
+    sym.value.is_valid = false;
+
+    type_t *type = process_simple_type(node->children[0]);
+    AST_node_t *declarator = node->children[1];
+
+    while (declarator->type == AST_NODE_TYPE_POINTER_TYPE || declarator->type == AST_NODE_TYPE_ARRAY_TYPE)
+    {
+        if (declarator->type == AST_NODE_TYPE_POINTER_TYPE)
+        {
+            type_t *t = create_type();
+            t->kind = TYPE_POINTER;
+            t->pointer.dest = type;
+
+            type = t;
+        }
+        else if (declarator->type == AST_NODE_TYPE_ARRAY_TYPE)
+        {
+            type_t *t = create_type();
+            t->kind = TYPE_ARRAY;
+            t->array.element = type;
+
+            symbol_const_value_t size_val = eval_constant_expression(declarator->children[1]);
+            if (!size_val.is_valid || (size_val.type->kind != TYPE_INT && size_val.type->kind != TYPE_INTLIT))
+            {
+                if (size_val.is_valid)
+                    free_type(size_val.type);
+
+                free_type(type);
+
+                push_error(&node->start, &node->end, "invalid size for array");
+                return;
+            }
+            free_type(size_val.type);
+            t->array.size = size_val.val;
+
+            type = t;
+        }
+
+        declarator = declarator->children[0];
+    }
+
+    sym.type = type;
+
+    ASSERT(declarator->type == AST_NODE_TYPE_DECLARATOR);
+    ASSERT(declarator->tokens[0]->type == TOKTYPE_IDENTIFIER);
+    sym.name = strdup(declarator->tokens[0]->text);
+
+    symbol_insert(sym);
+}
+
+static void process_AST_node(AST_node_t *node);
+static void process_function_definition(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(array_size(node->children) >= 1);
+
+    symbol_t sym;
+    sym.kind = SYMBOL_FUNCTION;
+    sym.declaration = node;
+    sym.value.is_valid = false;
+
+    AST_node_t *func_type = node->children[1];
+    ASSERT(array_size(func_type->children) >= 1);
+
+    type_t *t = create_type();
+    t->kind = TYPE_FUNCTION;
+    t->function.return_type = process_simple_type(node->children[0]);
+    static_array_create(type_t *, max(array_size(func_type->children) - 1, 1), t->function.parameter_types);
+
+    begin_scope();
+    for (size_t i = 1; i < array_size(func_type->children); i++)
+    {
+        array_push(t->function.parameter_types, process_pointer_type(func_type->children[i]));
+        process_parameter(func_type->children[i]);
+    }
+    process_AST_node(node->children[2]);
+
+    end_scope();
+
+    sym.name = strdup(func_type->children[0]->tokens[0]->text);
+    sym.type = t;
+
+    symbol_insert(sym);
+}
+
+static void process_compound_statement(AST_node_t *node)
+{
+    ASSERT(node);
+    for (size_t i = 0; i < array_size(node->children); i++)
+    {
+        if (node->children[i] == NULL)
+            continue;
+
+        process_AST_node(node->children[i]);
+    }
+}
+
 static void process_AST_node(AST_node_t *node)
 {
     switch (node->type)
@@ -199,28 +351,15 @@ static void process_AST_node(AST_node_t *node)
         break;
 
     case AST_NODE_TYPE_FUNCTION_DEFINITION:
+        process_function_definition(node);
         break;
 
     case AST_NODE_TYPE_COMPOUND_STATEMENT:
+        process_compound_statement(node);
         break;
 
     default:
         break;
-    }
-}
-
-static void visit_AST_node(AST_node_t *node)
-{
-    ASSERT(node);
-
-    process_AST_node(node);
-
-    for (size_t i = 0; i < array_size(node->children); i++)
-    {
-        if (node->children[i] == NULL)
-            continue;
-
-        visit_AST_node(node->children[i]);
     }
 }
 
@@ -230,7 +369,20 @@ void create_scopes(AST_node_t *AST)
     ASSERT(AST->type == AST_NODE_TYPE_TRANSLATION_UNIT);
 
     begin_scope();
-    visit_AST_node(AST);
+    for (size_t i = 0; i < array_size(AST->children); i++)
+    {
+        if (AST->children[i] == NULL)
+            continue;
+
+        if (AST->children[i]->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
+        {
+            begin_scope();
+            process_AST_node(AST->children[i]);
+            end_scope();
+        }
+        else
+            process_AST_node(AST->children[i]);
+    }
     end_scope();
 }
 

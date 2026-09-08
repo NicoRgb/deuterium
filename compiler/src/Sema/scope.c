@@ -41,7 +41,7 @@ static void free_scope(scope_t *scope)
     ASSERT(scope);
 
     for (size_t i = 0; i < array_size(scope->children); i++)
-        free_scope(scope);
+        free_scope(scope->children[i]);
 
     for (size_t i = 0; i < array_size(scope->symbols); i++)
     {
