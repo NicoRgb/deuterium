@@ -70,19 +70,14 @@ static type_t *process_type(AST_node_t *node, AST_node_t **out_node)
             t->array.element = type;
 
             symbol_const_value_t size_val = eval_constant_expression(current_node->children[1]);
-            if (!size_val.is_valid || (size_val.type->kind != TYPE_INT && size_val.type->kind != TYPE_INTLIT))
+            if (!size_val.is_valid)
             {
                 // TODO: VAR?
 
-                if (size_val.is_valid)
-                    free_type(size_val.type);
-
                 free_type(type);
-
                 push_error(&current_node->start, &current_node->end, "invalid size for array");
                 return NULL;
             }
-            free_type(size_val.type);
             t->array.size = size_val.val;
 
             type = t;
@@ -108,8 +103,9 @@ static void process_declaration(AST_node_t *declaration)
     AST_node_t *func_type_or_declarator;
     sym.type = process_type(declaration, &func_type_or_declarator);
 
-    symbol_const_value_t sym_val; // TODO: default values
-    sym_val.is_valid = false;
+    symbol_const_value_t sym_val;
+    sym_val.is_valid = true;
+    sym_val.val = 0;
     if (declaration->children[1]->type == AST_NODE_TYPE_BINARY_OPERATION)
     {
         sym_val = eval_constant_expression(declaration->children[1]->children[1]);
@@ -117,9 +113,6 @@ static void process_declaration(AST_node_t *declaration)
 
     if (!sym.type)
     {
-        if (sym_val.is_valid)
-            free_type(sym_val.type);
-
         return;
     }
 
@@ -142,18 +135,19 @@ static void process_declaration(AST_node_t *declaration)
         func_type_or_declarator = func_type_or_declarator->children[0];
     }
 
-    if (sym_val.is_valid && !compare_types(sym_val.type, sym.type))
+    if (!sym_val.is_valid)
     {
-        if (sym_val.is_valid)
-            free_type(sym_val.type);
-
         free_type(sym.type);
-        push_error(&declaration->start, &declaration->end, "invalid type conversion");
+        push_error(&declaration->start, &declaration->end, "type error");
 
         return;
     }
 
-    sym.value = sym_val;
+    sym.value.is_valid = false;
+    if (sym.kind == SYMBOL_VARIABLE && (sym.type->kind == TYPE_INT || sym.type->kind == TYPE_POINTER))
+    {
+        sym.value = sym_val;
+    }
 
     ASSERT(func_type_or_declarator->type == AST_NODE_TYPE_DECLARATOR);
     ASSERT(func_type_or_declarator->tokens[0]->type == TOKTYPE_IDENTIFIER);
@@ -237,6 +231,21 @@ static void process_compound_statement(AST_node_t *node)
     }
 }
 
+static void process_statement_child(AST_node_t *node, size_t child_index)
+{
+    ASSERT(array_size(node->children) > child_index);
+
+    AST_node_t *stmt = node->children[child_index];
+    if (stmt->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
+    {
+        begin_scope();
+        process_AST_node(stmt);
+        end_scope();
+    }
+    else
+        process_AST_node(stmt);
+}
+
 static void process_AST_node(AST_node_t *node)
 {
     switch (node->type)
@@ -262,23 +271,46 @@ static void process_AST_node(AST_node_t *node)
         }
         break;
 
-    case AST_NODE_TYPE_IF_STATEMENT:
     case AST_NODE_TYPE_WHILE_STATEMENT:
-    case AST_NODE_TYPE_FOR_STATEMENT:
-    case AST_NODE_TYPE_RETURN_STATEMENT: // TODO: check expressions
+    case AST_NODE_TYPE_IF_STATEMENT:
     {
-        if (array_size(node->children) == 0)
-            break;
+        type_t *type = check_expression(node->children[0]);
+        if (type)
+            free_type(type);
 
-        AST_node_t *stmt = node->children[array_size(node->children) - 1];
-        if (stmt->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
+        process_statement_child(node, 1);
+        if (array_size(node->children) > 2)
+            process_statement_child(node, 2);
+
+        break;
+    }
+
+    case AST_NODE_TYPE_FOR_STATEMENT:
+    {
+        begin_scope();
+        process_AST_node(node->children[0]);
+        process_AST_node(node->children[1]);
+
+        if (array_size(node->children) > 3)
         {
-            begin_scope();
-            process_AST_node(stmt);
-            end_scope();
+            type_t *type = check_expression(node->children[2]);
+            if (type)
+                free_type(type);
+
+            process_AST_node(node->children[3]);
         }
         else
-            process_AST_node(stmt);
+            process_AST_node(node->children[2]);
+
+        end_scope();
+        break;
+    }
+
+    case AST_NODE_TYPE_RETURN_STATEMENT:
+    {
+        type_t *type = check_expression(node->children[0]);
+        if (type)
+            free_type(type);
         break;
     }
 

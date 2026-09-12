@@ -85,7 +85,7 @@ token_t *tok_expect_n(size_t n, ...)
 {
     token_t *tok = tok_next();
     if (!tok)
-        return 0;
+        return NULL;
 
     char msg[MAX_ERROR_MSG];
     strcpy(msg, "expected ");
@@ -109,7 +109,6 @@ token_t *tok_expect_n(size_t n, ...)
     }
     va_end(args);
 
-    // display previous tokens position
     position_t start = {.col = 0, .row = 0};
     position_t end = {.col = 0, .row = 0};
 
@@ -121,7 +120,7 @@ token_t *tok_expect_n(size_t n, ...)
     }
 
     push_error(&start, &end, msg);
-    return NULL;
+    return tok;
 }
 
 void tok_free(token_t *tok)

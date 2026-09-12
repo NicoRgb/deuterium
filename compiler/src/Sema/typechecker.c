@@ -197,6 +197,17 @@ static const typerule_t unary_rules[] = {
     UNARY_RULE(TOKTYPE_BANG, TYPE_POINTER, TYPERULE_RES_INT),
 };
 
+static const typerule_t postfix_rules[] = {
+    /* increment / decrement */
+    UNARY_RULE(TOKTYPE_PLUS_PLUS, TYPE_INT, TYPERULE_RES_LEFT_COPY),
+    UNARY_RULE(TOKTYPE_PLUS_PLUS, TYPE_INTLIT, TYPERULE_RES_LEFT_COPY),
+    UNARY_RULE(TOKTYPE_PLUS_PLUS, TYPE_POINTER, TYPERULE_RES_LEFT_COPY),
+
+    UNARY_RULE(TOKTYPE_MINUS_MINUS, TYPE_INT, TYPERULE_RES_LEFT_COPY),
+    UNARY_RULE(TOKTYPE_MINUS_MINUS, TYPE_INTLIT, TYPERULE_RES_LEFT_COPY),
+    UNARY_RULE(TOKTYPE_MINUS_MINUS, TYPE_POINTER, TYPERULE_RES_LEFT_COPY),
+};
+
 static bool is_scalar_type(const type_t *type)
 {
     return type->kind == TYPE_INT ||
@@ -278,6 +289,183 @@ static type_t *check_unary_operation(AST_node_t *node)
 
     push_error(&node->start, &node->end, "type error");
     free_type(type);
+    return NULL;
+}
+
+static type_t *check_postfix_operation(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(node->type == AST_NODE_TYPE_POSTFIX_OPERATION);
+
+    type_t *type = check_expression(node->children[0]);
+    if (!type)
+        return NULL;
+
+    for (size_t i = 0; i < sizeof(postfix_rules) / sizeof(typerule_t); i++)
+    {
+        if (postfix_rules[i].unary && postfix_rules[i].op == node->tokens[0]->type && postfix_rules[i].kind1 == type->kind)
+        {
+            switch (postfix_rules[i].res)
+            {
+            case TYPERULE_RES_LEFT_COPY:
+            case TYPERULE_RES_RIGHT_COPY:
+                return type;
+
+            case TYPERULE_RES_POINTER_TO_LEFT:
+            case TYPERULE_RES_POINTER_TO_RIGHT:
+            {
+                type_t *res = create_type();
+                res->kind = TYPE_POINTER;
+                res->pointer.dest = type;
+                return res;
+            }
+
+            case TYPERULE_RES_DEREFERENCE_LEFT:
+            case TYPERULE_RES_DEREFERENCE_RIGHT:
+            {
+                type_t *dest = type->pointer.dest;
+                free(type);
+                return dest;
+            }
+
+            case TYPERULE_RES_VOID:
+                free_type(type);
+                type = create_type();
+                type->kind = TYPE_VOID;
+                return type;
+
+            case TYPERULE_RES_INT:
+                free_type(type);
+                type = create_type();
+                type->kind = TYPE_INT;
+                return type;
+
+            case TYPERULE_RES_INTLIT:
+                free_type(type);
+                type = create_type();
+                type->kind = TYPE_INTLIT;
+                return type;
+
+            default:
+                ASSERT(0);
+            }
+        }
+    }
+
+    push_error(&node->start, &node->end, "type error");
+    free_type(type);
+    return NULL;
+}
+
+static type_t *check_member_access(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(node->type == AST_NODE_TYPE_MEMBER_ACCESS);
+
+    push_error(&node->start, &node->end, "unimplemented");
+    return NULL;
+}
+
+static type_t *check_pointer_member_access(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(node->type == AST_NODE_TYPE_POINTER_MEMBER_ACCESS);
+
+    push_error(&node->start, &node->end, "unimplemented");
+    return NULL;
+}
+
+static type_t *check_array_subscript(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(node->type == AST_NODE_TYPE_ARRAY_SUBSCRIPT);
+
+    type_t *array = check_expression(node->children[0]);
+    if (!array)
+        return NULL;
+
+    type_t *index = check_expression(node->children[1]);
+    if (!index)
+    {
+        free_type(array);
+        return NULL;
+    }
+
+    if (array->kind != TYPE_ARRAY || (index->kind != TYPE_INT && index->kind != TYPE_INTLIT))
+    {
+        free_type(array);
+        free_type(index);
+        push_error(&node->start, &node->end, "type error");
+    }
+
+    free_type(index);
+
+    type_t *res = array->array.element;
+    free(array);
+    return res;
+}
+
+static type_t *check_function_call(AST_node_t *node)
+{
+    ASSERT(node);
+    ASSERT(node->type == AST_NODE_TYPE_FUNCTION_CALL);
+
+    type_t *func = check_expression(node->children[0]);
+    if (!func)
+        return NULL;
+
+    if (func->kind != TYPE_FUNCTION)
+    {
+        free_type(func);
+        return NULL;
+    }
+
+    AST_node_t *arg = node->children[1];
+    size_t i = 0;
+    while (true)
+    {
+        ASSERT(arg->type == AST_NODE_TYPE_BINARY_OPERATION);
+
+        size_t index_plus_one = array_size(func->function.parameter_types) - i;
+        if (index_plus_one == 0)
+            break;
+
+        type_t *arg_type = check_expression(arg->children[1]);
+        if (!arg_type)
+            break;
+
+        if (!compare_types(func->function.parameter_types[index_plus_one - 1], arg_type))
+        {
+            free_type(arg_type);
+            break;
+        }
+        free_type(arg_type);
+
+        if (arg->children[0]->type != AST_NODE_TYPE_BINARY_OPERATION)
+        {
+            arg_type = check_expression(arg->children[0]);
+            if (!arg_type)
+                break;
+
+            if (!compare_types(func->function.parameter_types[index_plus_one - 1], arg_type))
+            {
+                free_type(arg_type);
+                break;
+            }
+
+            free_type(arg_type);
+            type_t *res = func->function.return_type;
+            free(func);
+            return res;
+        }
+
+        arg = arg->children[0];
+        i++;
+    }
+
+    push_error(&node->start, &node->end, "type error");
+
+    free_type(func);
     return NULL;
 }
 
@@ -493,6 +681,21 @@ type_t *check_expression(AST_node_t *node)
 
     case AST_NODE_TYPE_UNARY_OPERATION:
         return check_unary_operation(node);
+
+    case AST_NODE_TYPE_POSTFIX_OPERATION:
+        return check_postfix_operation(node);
+
+    case AST_NODE_TYPE_MEMBER_ACCESS:
+        return check_member_access(node);
+
+    case AST_NODE_TYPE_POINTER_MEMBER_ACCESS:
+        return check_pointer_member_access(node);
+
+    case AST_NODE_TYPE_ARRAY_SUBSCRIPT:
+        return check_array_subscript(node);
+
+    case AST_NODE_TYPE_FUNCTION_CALL:
+        return check_function_call(node);
 
     case AST_NODE_TYPE_BINARY_OPERATION:
         return check_binary_operation(node);

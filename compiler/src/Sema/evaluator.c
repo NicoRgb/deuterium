@@ -9,8 +9,6 @@ static symbol_const_value_t eval_constant_integer_literal(AST_node_t *node)
     symbol_const_value_t result;
     result.is_valid = true;
     result.val = atoll(node->tokens[0]->text); // TODO: some real parsing
-    result.type = create_type();
-    result.type->kind = TYPE_INTLIT;
 
     return result;
 }
@@ -76,32 +74,18 @@ static symbol_const_value_t eval_constant_binary_operation(AST_node_t *node)
     symbol_const_value_t right = eval_constant_expression(node->children[1]);
     if (!right.is_valid)
     {
-        free_type(left.type);
         return right;
     }
 
     symbol_const_value_t result;
     result.is_valid = true;
-    if (!compare_types(left.type, right.type)) // TODO: check type compatibility for individual cases
-    {
-        free_type(left.type);
-        free_type(right.type);
-
-        push_error(&node->start, &node->end, "invalid type conversion");
-        result.is_valid = false;
-        return result;
-    }
-
-    result.type = right.type;
 
     switch (node->tokens[0]->type)
     {
     case TOKTYPE_EQUAL:
-        free_type(left.type);
         return right;
 
     case TOKTYPE_COMMA:
-        free_type(left.type);
         return right;
 
     case TOKTYPE_OR_OR:
@@ -179,8 +163,7 @@ static symbol_const_value_t eval_constant_binary_operation(AST_node_t *node)
         ASSERT(false);
     }
 
-    free_type(left.type);
-    return result; // inherited right.type
+    return result;
 }
 
 static symbol_const_value_t eval_constant_conditional_operation(AST_node_t *node)

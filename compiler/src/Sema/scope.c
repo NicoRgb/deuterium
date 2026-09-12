@@ -210,6 +210,5 @@ symbol_t *resolve_symbol(const char *identifier)
         scope = scope->parent;
     }
 
-    printf("end\n");
     return NULL;
 }

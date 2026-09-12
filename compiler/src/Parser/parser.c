@@ -1052,6 +1052,11 @@ AST_node_t *expression_statement(void)
     }
 
     AST_node_t *expr = expression();
+    if (!expr)
+    {
+        tok_expect(TOKTYPE_SEMICOLON);
+        return node;
+    }
     node_push_child(node, expr);
 
     token_t *semicolon = tok_expect(TOKTYPE_SEMICOLON);

@@ -212,17 +212,7 @@ static void print_symbol_value(const symbol_t *symbol)
     if (!symbol->value.is_valid)
         return;
 
-    printf(" = ");
-    switch (symbol->value.type ? symbol->value.type->kind : TYPE_VOID)
-    {
-    case TYPE_INT:
-    case TYPE_INTLIT:
-        printf("%" PRId64, symbol->value.val);
-        break;
-    default:
-        printf("<value>");
-        break;
-    }
+    printf(" = %" PRId64, symbol->value.val);
 }
 
 static void print_scope(const scope_t *scope, bool *has_sibling, size_t depth)

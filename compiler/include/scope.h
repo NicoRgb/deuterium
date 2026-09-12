@@ -47,8 +47,6 @@ typedef struct
 {
     bool is_valid;
     int64_t val;
-
-    type_t *type;
 } symbol_const_value_t;
 
 typedef enum
