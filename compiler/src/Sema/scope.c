@@ -1,7 +1,21 @@
 #include "scope.h"
 
+#include <string.h>
+
 scope_t *global_scope = NULL;
 scope_t *current_scope = NULL;
+
+type_t *create_type(void)
+{
+    type_t *res = malloc(sizeof(type_t));
+    if (!res)
+    {
+        log_error("failed to allocate memory");
+        exit(EXIT_FAILURE);
+    }
+
+    return res;
+}
 
 void free_type(type_t *type)
 {
@@ -34,6 +48,68 @@ void free_type(type_t *type)
     }
 
     free(type);
+}
+
+type_t *clone_type(type_t *t)
+{
+    type_t *res = create_type();
+    res->kind = t->kind;
+
+    if (res->kind == TYPE_POINTER)
+    {
+        res->pointer.dest = clone_type(t->pointer.dest);
+    }
+
+    else if (res->kind == TYPE_ARRAY)
+    {
+        res->array.size = t->array.size;
+        res->array.element = clone_type(t->array.element);
+    }
+
+    else if (res->kind == TYPE_FUNCTION)
+    {
+        static_array_create(type_t *, static_array_size(t->function.parameter_types), res->function.parameter_types);
+
+        for (size_t i = 0; i < static_array_size(t->function.parameter_types); i++)
+            static_array_push(res->function.parameter_types, clone_type(t->function.parameter_types[i]));
+
+        res->function.return_type = clone_type(t->function.return_type);
+    }
+
+    return res;
+}
+
+bool compare_types(type_t *left, type_t *right)
+{
+    if ((left->kind == TYPE_INTLIT && right->kind == TYPE_INT) || (left->kind == TYPE_INT && right->kind == TYPE_INTLIT))
+        return true;
+
+    if (left->kind != right->kind)
+        return false;
+
+    if (left->kind == TYPE_POINTER)
+    {
+        return compare_types(left->pointer.dest, right->pointer.dest);
+    }
+
+    else if (left->kind == TYPE_ARRAY)
+    {
+        return compare_types(left->array.element, right->array.element);
+    }
+
+    else if (left->kind == TYPE_FUNCTION)
+    {
+        if (static_array_size(left->function.parameter_types) != static_array_size(right->function.parameter_types))
+            return false;
+
+        for (size_t i = 0; i < static_array_size(left->function.parameter_types); i++)
+            if (!compare_types(left->function.parameter_types[i], right->function.parameter_types[i]))
+                return false;
+
+        return compare_types(left->function.return_type, right->function.return_type);
+    }
+
+    return true;
 }
 
 static void free_scope(scope_t *scope)
@@ -116,4 +192,24 @@ void symbol_insert(symbol_t symbol)
 scope_t *get_global_scope(void)
 {
     return global_scope;
+}
+
+symbol_t *resolve_symbol(const char *identifier)
+{
+    if (!current_scope)
+        return NULL;
+
+    scope_t *scope = current_scope;
+    while (scope)
+    {
+        for (size_t i = 0; i < array_size(scope->symbols); i++)
+        {
+            if (strcmp(scope->symbols[i].name, identifier) == 0)
+                return &scope->symbols[i];
+        }
+        scope = scope->parent;
+    }
+
+    printf("end\n");
+    return NULL;
 }

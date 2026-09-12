@@ -76,7 +76,11 @@ typedef struct _scope
     array_t(symbol_t) symbols;
 } scope_t;
 
+type_t *create_type(void);
 void free_type(type_t *type);
+type_t *clone_type(type_t *t);
+bool compare_types(type_t *left, type_t *right);
+
 void free_scopes(void);
 
 scope_t *begin_scope(void);
@@ -84,3 +88,4 @@ void end_scope(void);
 void symbol_insert(symbol_t symbol);
 
 scope_t *get_global_scope(void);
+symbol_t *resolve_symbol(const char *identifier);

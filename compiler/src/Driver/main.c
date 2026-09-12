@@ -77,8 +77,6 @@ static int compile_unit(const char *filepath)
         emit_errors();
     }
 
-    free(content);
-
     if (!AST)
     {
         return result;
@@ -95,6 +93,7 @@ static int compile_unit(const char *filepath)
     print_scope_tree(get_global_scope());
 
     free_scopes();
+    free(content);
 
     return result;
 }
