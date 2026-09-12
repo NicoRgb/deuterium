@@ -76,7 +76,9 @@ static AST_node_t *create_AST_node(AST_node_type_t type)
 static void node_push_child(AST_node_t *node, AST_node_t *child)
 {
     ASSERT(node);
-    ASSERT(child);
+
+    if (!child)
+        return;
 
     array_push(node->children, child);
 }
@@ -124,6 +126,10 @@ static void node_end_token(AST_node_t *node, token_t *tok)
 static void node_span(AST_node_t *node, AST_node_t *first, AST_node_t *last)
 {
     ASSERT(node);
+
+    if (!first || !last)
+        return;
+
     ASSERT(first);
     ASSERT(last);
 

@@ -72,6 +72,8 @@ typedef struct _scope
     array_t(struct _scope *) children;
 
     array_t(symbol_t) symbols;
+
+    AST_node_t *declaration;
 } scope_t;
 
 type_t *create_type(void);
@@ -81,9 +83,10 @@ bool compare_types(type_t *left, type_t *right);
 
 void free_scopes(void);
 
-scope_t *begin_scope(void);
+scope_t *begin_scope(AST_node_t *declaration);
 void end_scope(void);
 void symbol_insert(symbol_t symbol);
 
 scope_t *get_global_scope(void);
+scope_t *get_current_scope(void);
 symbol_t *resolve_symbol(const char *identifier);

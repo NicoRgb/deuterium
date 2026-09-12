@@ -92,6 +92,22 @@ static type_t *process_type(AST_node_t *node, AST_node_t **out_node)
     return type;
 }
 
+const char *identifier_from_node(AST_node_t *node)
+{
+    ASSERT(node);
+
+    AST_node_t *current_node = node->children[1];
+
+    while (current_node->type == AST_NODE_TYPE_POINTER_TYPE || current_node->type == AST_NODE_TYPE_ARRAY_TYPE || current_node->type == AST_NODE_TYPE_FUNCTION_TYPE || current_node->type == AST_NODE_TYPE_BINARY_OPERATION)
+    {
+        current_node = current_node->children[0];
+    }
+
+    ASSERT(current_node->type == AST_NODE_TYPE_DECLARATOR);
+
+    return current_node->tokens[0]->text;
+}
+
 static void process_declaration(AST_node_t *declaration)
 {
     ASSERT(declaration);
@@ -195,20 +211,19 @@ static void process_function_definition(AST_node_t *node)
     t->function.return_type = process_simple_type(node->children[0]);
     static_array_create(type_t *, max(array_size(func_type->children) - 1, 1), t->function.parameter_types);
 
-    begin_scope();
+    sym.name = strdup(func_type->children[0]->tokens[0]->text);
+    sym.type = t;
+
+    symbol_insert(sym);
+
+    begin_scope(node);
     for (size_t i = 1; i < array_size(func_type->children); i++)
     {
         array_push(t->function.parameter_types, process_type(func_type->children[i], NULL));
         process_parameter(func_type->children[i]);
     }
     process_AST_node(node->children[2]);
-
     end_scope();
-
-    sym.name = strdup(func_type->children[0]->tokens[0]->text);
-    sym.type = t;
-
-    symbol_insert(sym);
 }
 
 static void process_compound_statement(AST_node_t *node)
@@ -222,7 +237,7 @@ static void process_compound_statement(AST_node_t *node)
         AST_node_t *child = node->children[i];
         if (child->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
         {
-            begin_scope();
+            begin_scope(child);
             process_AST_node(child);
             end_scope();
         }
@@ -238,7 +253,7 @@ static void process_statement_child(AST_node_t *node, size_t child_index)
     AST_node_t *stmt = node->children[child_index];
     if (stmt->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
     {
-        begin_scope();
+        begin_scope(node);
         process_AST_node(stmt);
         end_scope();
     }
@@ -287,7 +302,7 @@ static void process_AST_node(AST_node_t *node)
 
     case AST_NODE_TYPE_FOR_STATEMENT:
     {
-        begin_scope();
+        begin_scope(node);
         process_AST_node(node->children[0]);
         process_AST_node(node->children[1]);
 
@@ -308,7 +323,42 @@ static void process_AST_node(AST_node_t *node)
 
     case AST_NODE_TYPE_RETURN_STATEMENT:
     {
-        type_t *type = check_expression(node->children[0]);
+        scope_t *scope = get_current_scope();
+        if (!scope)
+        {
+            ASSERT(0);
+            break;
+        }
+
+        scope_t *current_scope = scope;
+        for (; current_scope != NULL; current_scope = current_scope->parent)
+        {
+            if (scope->declaration->type == AST_NODE_TYPE_FUNCTION_DEFINITION)
+                break;
+        }
+
+        if (!current_scope)
+        {
+            ASSERT(0);
+            break;
+        }
+
+        type_t *type = NULL;
+        if (array_size(node->children) > 0)
+        {
+            type = check_expression(node->children[0]);
+            if (!type)
+                break;
+        }
+
+        const char *identifier = identifier_from_node(current_scope->declaration);
+        symbol_t *func = resolve_symbol(identifier);
+        ASSERT(func);
+        ASSERT(func->kind == SYMBOL_FUNCTION);
+
+        if (!(type && compare_types(type, func->type->function.return_type)) && !(!type && func->type->function.return_type->kind == TYPE_VOID))
+            push_error(&node->start, &node->end, "invalid return type");
+
         if (type)
             free_type(type);
         break;
@@ -325,7 +375,7 @@ void create_scopes(AST_node_t *AST)
     ASSERT(AST);
     ASSERT(AST->type == AST_NODE_TYPE_TRANSLATION_UNIT);
 
-    begin_scope();
+    begin_scope(AST);
     for (size_t i = 0; i < array_size(AST->children); i++)
     {
         if (AST->children[i] == NULL)
@@ -333,7 +383,7 @@ void create_scopes(AST_node_t *AST)
 
         if (AST->children[i]->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
         {
-            begin_scope();
+            begin_scope(AST->children[i]);
             process_AST_node(AST->children[i]);
             end_scope();
         }

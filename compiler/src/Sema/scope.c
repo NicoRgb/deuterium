@@ -155,9 +155,10 @@ static scope_t *scope_create(void)
     return s;
 }
 
-scope_t *begin_scope(void)
+scope_t *begin_scope(AST_node_t *declaration)
 {
     scope_t *scope = scope_create();
+    scope->declaration = declaration;
     scope->parent = current_scope;
 
     if (current_scope)
@@ -186,12 +187,23 @@ void symbol_insert(symbol_t symbol)
     if (!current_scope)
         return;
 
+    if (resolve_symbol(symbol.name))
+    {
+        push_error(&symbol.declaration->start, &symbol.declaration->end, "redeclaration");
+        return;
+    }
+
     array_push(current_scope->symbols, symbol);
 }
 
 scope_t *get_global_scope(void)
 {
     return global_scope;
+}
+
+scope_t *get_current_scope(void)
+{
+    return current_scope;
 }
 
 symbol_t *resolve_symbol(const char *identifier)

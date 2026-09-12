@@ -417,6 +417,7 @@ static type_t *check_function_call(AST_node_t *node)
     if (func->kind != TYPE_FUNCTION)
     {
         free_type(func);
+        push_error(&node->start, &node->end, "type not callable");
         return NULL;
     }
 
