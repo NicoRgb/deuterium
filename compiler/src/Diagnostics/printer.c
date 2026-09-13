@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "logger.h"
 #include "printer.h"
+#include "ansi.h"
 
 #include <inttypes.h>
 
@@ -270,8 +271,33 @@ void print_hlir_type(ir_type_t *type)
         printf("i%d", type->integer.bits);
         break;
 
+    case TYPE_POINTER:
+        printf("ptr<");
+        print_hlir_type(type->pointer.dest);
+        printf(">");
+        break;
+
     default:
         ASSERT(0);
+    }
+}
+
+void print_hlir_value(ir_value_t *value)
+{
+    switch (value->kind)
+    {
+    case IR_VALUE_CONSTANT:
+    {
+        ir_constant_t *constant = (ir_constant_t *)value;
+        printf("$%ld", constant->value);
+        break;
+    }
+
+    default:
+        printf("%%%ld: " ANSI_GRAY, value->id);
+        print_hlir_type(value->type);
+        printf(ANSI_RESET);
+        break;
     }
 }
 
@@ -282,8 +308,7 @@ void print_hlir_parameters(array_t(ir_parameter_t *) parameters)
         if (i > 0)
             printf(", ");
 
-        print_hlir_type(parameters[i]->value.type);
-        printf(" %%%ld", parameters[i]->value.id);
+        print_hlir_value(&parameters[i]->value);
     }
 }
 
@@ -292,24 +317,132 @@ void print_hlir_instruction(ir_inst_t *instruction)
     switch (instruction->opcode)
     {
     case IR_ADD:
-        printf("%%%ld = add %%%ld, %%%ld\n", instruction->value.id, instruction->binary.lhs->id, instruction->binary.rhs->id);
-        break;
-
-    case IR_RET:
-        printf("ret");
-        if (instruction->ret.value != NULL)
-            printf(" %%%ld", instruction->ret.value->id);
+    case IR_REM:
+    case IR_CMP_NE:
+    {
+        print_hlir_value(&instruction->value);
+        printf(" = " ANSI_CYAN);
+        switch (instruction->opcode)
+        {
+        case IR_ADD:
+            printf("add");
+            break;
+        case IR_REM:
+            printf("rem");
+            break;
+        case IR_CMP_NE:
+            printf("cmp ne");
+            break;
+        default:
+            ASSERT(0);
+        }
+        printf(ANSI_RESET " ");
+        print_hlir_value(instruction->binary.lhs);
+        printf(", ");
+        print_hlir_value(instruction->binary.rhs);
         printf("\n");
         break;
+    }
+
+    case IR_LOAD:
+    {
+        print_hlir_value(&instruction->value);
+        printf(" = " ANSI_CYAN "load " ANSI_RESET);
+        print_hlir_value(instruction->load.address);
+        printf("\n");
+        break;
+    }
+
+    case IR_STORE:
+    {
+        printf(ANSI_CYAN "store " ANSI_RESET);
+        print_hlir_value(instruction->store.address);
+        printf(", ");
+        print_hlir_value(instruction->store.value);
+        printf("\n");
+        break;
+    }
+
+    case IR_ALLOCA:
+    {
+        print_hlir_value(&instruction->value);
+        printf(" = alloca ");
+        ASSERT(instruction->value.type->kind == IR_TYPE_POINTER);
+        print_hlir_type(instruction->value.type->pointer.dest);
+        printf("\n");
+        break;
+    }
+
+    case IR_RET:
+    {
+        printf(ANSI_CYAN "ret " ANSI_RESET);
+        if (instruction->ret.value != NULL)
+            print_hlir_value(instruction->ret.value);
+        printf("\n");
+        break;
+    }
+
+    case IR_COND_BR:
+    {
+        printf(ANSI_CYAN "cond_br " ANSI_RESET);
+        print_hlir_value(instruction->cond_br.condition);
+        printf(", %ld: " ANSI_GRAY "label" ANSI_RESET ", %ld: " ANSI_GRAY "label" ANSI_RESET "\n", instruction->cond_br.true_block->id, instruction->cond_br.false_block->id);
+        break;
+    }
+
+    case IR_BR:
+    {
+        printf(ANSI_CYAN "br" ANSI_RESET " %ld: " ANSI_GRAY "label" ANSI_RESET "\n", instruction->br.target->id);
+        break;
+    }
 
     default:
         ASSERT(0);
     }
 }
 
+void print_hlir_block(ir_block_t *block)
+{
+    printf("%ld:\n", block->id);
+    for (size_t i = 0; i < array_size(block->instructions); i++)
+    {
+        print_simple_indent(4);
+        print_hlir_instruction(block->instructions[i]);
+    }
+
+    if (block->terminator)
+    {
+        print_simple_indent(4);
+        print_hlir_instruction(block->terminator);
+    }
+    else
+    {
+        log_warn("block without terminator");
+    }
+}
+
 void print_hlir(ir_module_t *module)
 {
-    // TODO: print globals
+    ir_global_t *global;
+    foreach (module->globals, global)
+    {
+        print_hlir_type(global->value.type);
+        printf(" %%%ld", global->value.id);
+        switch (global->value.type->kind)
+        {
+        case IR_TYPE_INTEGER:
+            printf(" = %ld", global->initial_value);
+            break;
+
+        default:
+            break;
+        }
+
+        printf("\n");
+    }
+
+    if (array_size(module->globals) > 0)
+        printf("\n");
 
     ir_function_t *func;
     foreach (module->functions, func)
@@ -318,12 +451,11 @@ void print_hlir(ir_module_t *module)
         print_hlir_type(func->function_type->function.return_type);
         printf(" @%s(", func->name);
         print_hlir_parameters(func->parameters);
-        printf(") {\nentry:\n");
+        printf(") {\n");
 
-        for (size_t i = 0; i < array_size(func->blocks[0]->instructions); i++)
+        for (size_t i = 0; i < array_size(func->blocks); i++)
         {
-            print_simple_indent(4);
-            print_hlir_instruction(func->blocks[0]->instructions[i]);
+            print_hlir_block(func->blocks[i]);
         }
 
         printf("}\n");

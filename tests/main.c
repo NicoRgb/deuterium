@@ -1,4 +1,10 @@
-int add(int a, int b)
+int is_even(int n)
 {
-    return a + b;
+    int res = 1;
+    if (n % 2)
+        res = 0;
+    else
+        res = 2;
+
+    return res;
 }

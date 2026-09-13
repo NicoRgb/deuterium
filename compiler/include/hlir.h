@@ -73,37 +73,46 @@ typedef enum
 
 typedef enum
 {
+    IR_VALUE_CONSTANT,
     IR_VALUE_GLOBAL,
     IR_VALUE_PARAMETER,
-    IR_VALUE_INSTRUCTION,
+    IR_VALUE_INSTRUCTION, // not safe to cast to ir_inst_t*
 } ir_value_kind_t;
 
 typedef uint64_t ir_value_id_t;
 typedef uint64_t ir_block_id_t;
-typedef uint64_t ir_inst_id_t;
 
 typedef struct ir_value
 {
-    uint64_t id;
+    ir_value_id_t id;
     ir_value_kind_t kind;
     ir_type_t *type;
 } ir_value_t;
 
+// packed because ir_value_t* can be casted to ir_constant_t * if kind is CONSTANT
+typedef struct
+{
+    ir_value_t base;
+    uint64_t value;
+} __attribute__((packed)) ir_constant_t;
+
 typedef struct
 {
     ir_value_t value;
-} ir_global_t;
+    uint64_t initial_value;
+} __attribute__((packed)) ir_global_t;
 
 typedef struct
 {
     ir_value_t value;
 
     size_t index;
-} ir_parameter_t;
+} __attribute__((packed)) ir_parameter_t;
 
 typedef struct
 {
     struct _ir_function *function;
+    ir_block_id_t id;
 
     array_t(struct _ir_inst *) instructions;
     struct _ir_inst *terminator;
@@ -169,13 +178,15 @@ typedef struct _ir_function
     const char *name;
     ir_type_t *function_type;
 
+    struct _ir_module *module;
+
     array_t(ir_parameter_t *) parameters;
     array_t(ir_block_t *) blocks;
 
     symbol_ir_map_t bindings;
 } ir_function_t;
 
-typedef struct
+typedef struct _ir_module
 {
     array_t(ir_function_t *) functions;
     array_t(ir_global_t *) globals;

@@ -1,4 +1,5 @@
  - implement own arena allocator
  - use arena for AST and scopes
+ - slab allocator for ir?
 
  - remove INTLIT type from ir
