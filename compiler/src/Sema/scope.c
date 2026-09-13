@@ -206,6 +206,20 @@ scope_t *get_current_scope(void)
     return current_scope;
 }
 
+scope_t *get_scope_by_function(symbol_t *symbol)
+{
+    ASSERT(symbol);
+    if (!global_scope)
+        return NULL;
+
+    scope_t *scope;
+    foreach (global_scope->children, scope)
+        if (scope->declaration == symbol->declaration)
+            return scope;
+
+    return NULL;
+}
+
 symbol_t *resolve_symbol(const char *identifier)
 {
     if (!current_scope)

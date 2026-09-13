@@ -1,0 +1,4 @@
+ - implement own arena allocator
+ - use arena for AST and scopes
+
+ - remove INTLIT type from ir

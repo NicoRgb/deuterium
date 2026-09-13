@@ -88,6 +88,12 @@ static void print_indent(const bool *has_sibling, size_t depth)
     printf("%s", has_sibling[depth - 1] ? "├── " : "└── ");
 }
 
+static void print_simple_indent(size_t depth)
+{
+    for (size_t i = 0; i < depth; i++)
+        printf(" ");
+}
+
 static void print_tokens(const AST_node_t *node)
 {
     size_t count = array_size(node->tokens);
@@ -254,4 +260,72 @@ void print_scope_tree(const scope_t *root)
     }
     bool has_sibling[256] = {0};
     print_scope(root, has_sibling, 0);
+}
+
+void print_hlir_type(ir_type_t *type)
+{
+    switch (type->kind)
+    {
+    case TYPE_INT:
+        printf("i%d", type->integer.bits);
+        break;
+
+    default:
+        ASSERT(0);
+    }
+}
+
+void print_hlir_parameters(array_t(ir_parameter_t *) parameters)
+{
+    for (size_t i = 0; i < array_size(parameters); i++)
+    {
+        if (i > 0)
+            printf(", ");
+
+        print_hlir_type(parameters[i]->value.type);
+        printf(" %%%ld", parameters[i]->value.id);
+    }
+}
+
+void print_hlir_instruction(ir_inst_t *instruction)
+{
+    switch (instruction->opcode)
+    {
+    case IR_ADD:
+        printf("%%%ld = add %%%ld, %%%ld\n", instruction->value.id, instruction->binary.lhs->id, instruction->binary.rhs->id);
+        break;
+
+    case IR_RET:
+        printf("ret");
+        if (instruction->ret.value != NULL)
+            printf(" %%%ld", instruction->ret.value->id);
+        printf("\n");
+        break;
+
+    default:
+        ASSERT(0);
+    }
+}
+
+void print_hlir(ir_module_t *module)
+{
+    // TODO: print globals
+
+    ir_function_t *func;
+    foreach (module->functions, func)
+    {
+        printf("define ");
+        print_hlir_type(func->function_type->function.return_type);
+        printf(" @%s(", func->name);
+        print_hlir_parameters(func->parameters);
+        printf(") {\nentry:\n");
+
+        for (size_t i = 0; i < array_size(func->blocks[0]->instructions); i++)
+        {
+            print_simple_indent(4);
+            print_hlir_instruction(func->blocks[0]->instructions[i]);
+        }
+
+        printf("}\n");
+    }
 }

@@ -78,6 +78,10 @@ typedef struct
 
 #define array_size(array) ((__array_metadata_t *)((uintptr_t)array - sizeof(__array_metadata_t)))->size
 
+#define foreach(array, it) for (size_t _i = 0;                                     \
+                                _i < array_size(array) && ((it) = (array)[_i], 1); \
+                                ++_i)
+
 #define static_array_t(type) type *
 #define NULL_ARRAY NULL
 

@@ -89,4 +89,6 @@ void symbol_insert(symbol_t symbol);
 
 scope_t *get_global_scope(void);
 scope_t *get_current_scope(void);
+
+scope_t *get_scope_by_function(symbol_t *symbol);
 symbol_t *resolve_symbol(const char *identifier);

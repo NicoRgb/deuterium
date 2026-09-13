@@ -5,6 +5,7 @@
 #include "printer.h"
 #include "parser.h"
 #include "sema.h"
+#include "hlir.h"
 
 int config_initialized = 0;
 compiler_config_t g_config;
@@ -55,8 +56,6 @@ static char *read_file(const char *filepath)
 
 static int compile_unit(const char *filepath)
 {
-    int result = 1;
-
     log_info("compiling file '%s'", filepath);
 
     ASSERT(filepath);
@@ -73,29 +72,35 @@ static int compile_unit(const char *filepath)
 
     if (has_errors())
     {
-        result = 0;
         emit_errors();
-    }
+        free(content);
 
-    if (!AST)
-    {
-        return result;
+        return 0;
     }
 
     create_scopes(AST);
 
     if (has_errors())
     {
-        result = 0;
         emit_errors();
+        free_scopes();
+        free(content);
+
+        return 0;
     }
 
-    print_scope_tree(get_global_scope());
+    scope_t *scope = get_global_scope();
+    printf("\n");
+    print_scope_tree(scope);
+
+    ir_module_t *module = generate_high_level_ir(AST, scope);
+    printf("\n");
+    print_hlir(module);
 
     free_scopes();
     free(content);
 
-    return result;
+    return 1;
 }
 
 int main(int argc, char *argv[])
