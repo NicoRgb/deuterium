@@ -409,14 +409,7 @@ void create_scopes(AST_node_t *AST)
         if (AST->children[i] == NULL)
             continue;
 
-        if (AST->children[i]->type == AST_NODE_TYPE_COMPOUND_STATEMENT)
-        {
-            begin_scope(AST->children[i]);
-            process_AST_node(AST->children[i]);
-            end_scope();
-        }
-        else
-            process_AST_node(AST->children[i]);
+        process_AST_node(AST->children[i]);
     }
     end_scope();
 }

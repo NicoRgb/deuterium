@@ -71,8 +71,6 @@ static int compile_unit(const char *filepath)
     tokstream_init(content);
 
     AST_node_t *AST = parse();
-    log_info("AST:\n");
-    print_AST(AST);
 
     if (has_errors())
     {
@@ -82,11 +80,10 @@ static int compile_unit(const char *filepath)
         return 0;
     }
     printf("\n");
+    log_info("AST:\n");
+    print_AST(AST);
 
     create_scopes(AST);
-
-    log_info("typed AST:\n");
-    print_AST(AST);
 
     if (has_errors())
     {
@@ -96,7 +93,16 @@ static int compile_unit(const char *filepath)
 
         return 0;
     }
+    log_info("typed AST:\n");
+    print_AST(AST);
     printf("\n");
+
+    desugar_typed_AST(AST);
+    log_info("desugared AST:\n");
+    print_AST(AST);
+    printf("\n");
+
+    exit(EXIT_SUCCESS);
 
     scope_t *scope = get_global_scope();
     log_info("symbol tables:\n");

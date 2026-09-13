@@ -58,7 +58,14 @@ void free_AST_node(AST_node_t *node)
     free(node);
 }
 
-static AST_node_t *create_AST_node(AST_node_type_t type)
+void free_AST_node_layer(AST_node_t *node)
+{
+    array_free(node->children);
+    array_free(node->tokens);
+    free(node);
+}
+
+AST_node_t *create_AST_node(AST_node_type_t type)
 {
     AST_node_t *node = malloc(sizeof(AST_node_t));
     if (!node)
@@ -86,7 +93,7 @@ static AST_node_t *create_AST_node(AST_node_type_t type)
     return node;
 }
 
-static void node_push_child(AST_node_t *node, AST_node_t *child)
+void node_push_child(AST_node_t *node, AST_node_t *child)
 {
     ASSERT(node);
 
@@ -96,7 +103,7 @@ static void node_push_child(AST_node_t *node, AST_node_t *child)
     array_push(node->children, child);
 }
 
-static void node_push_token(AST_node_t *node, token_t *tok)
+void node_push_token(AST_node_t *node, token_t *tok)
 {
     ASSERT(node);
     ASSERT(tok);

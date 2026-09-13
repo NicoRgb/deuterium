@@ -1,10 +1,11 @@
 int is_even(int n)
 {
-    int res = 1;
-    if (n % 2)
-        res = 0;
-    else
-        res = 2;
+    int a = 0;
+    while (1)
+        a++;
 
-    return res;
+    for (int j = 0; j < 5; j++)
+        a--;
+
+    return a;
 }

@@ -7,6 +7,8 @@
 array_t(token_t *) token_buffer = NULL_ARRAY;
 size_t token_head_index = 0;
 
+array_t(token_t) forged_tokens = NULL_ARRAY;
+
 const char *g_text = NULL;
 
 void tokstream_init(const char *text)
@@ -14,6 +16,7 @@ void tokstream_init(const char *text)
     g_text = text;
     token_head_index = 0;
     array_create(token_t *, token_buffer);
+    array_create(token_t, forged_tokens);
 }
 
 size_t tokstream_checkpoint(void)
@@ -142,4 +145,14 @@ void tok_free(token_t *tok)
         free(tok->text);
 
     free(tok);
+}
+
+token_t *tok_forge(token_type_t type, char *text)
+{
+    token_t tok;
+    tok.type = type;
+    tok.text = text;
+
+    array_push(forged_tokens, tok);
+    return &forged_tokens[array_size(forged_tokens) - 1];
 }

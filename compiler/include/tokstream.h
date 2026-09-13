@@ -15,3 +15,5 @@ token_t *tok_expect(token_type_t type);
 token_t *tok_expect_n(size_t n, ...);
 
 void tok_free(token_t *tok);
+
+token_t *tok_forge(token_type_t type, char *text);
