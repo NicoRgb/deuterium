@@ -194,4 +194,4 @@ typedef struct _ir_module
     symbol_ir_map_t bindings;
 } ir_module_t;
 
-ir_module_t *generate_high_level_ir(AST_node_t *ast, scope_t *scope);
+ir_module_t *generate_high_level_ir(scope_t *scope);

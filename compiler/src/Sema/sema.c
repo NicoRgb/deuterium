@@ -8,6 +8,12 @@ static size_t max(size_t a, size_t b)
     return b;
 }
 
+uint64_t g_current_symbol_id = 0;
+static uint64_t generate_symbol_id(void)
+{
+    return g_current_symbol_id++;
+}
+
 static type_t *process_builtin_type(AST_node_t *node)
 {
     ASSERT(node);
@@ -113,6 +119,7 @@ static void process_declaration(AST_node_t *declaration)
     ASSERT(declaration);
 
     symbol_t sym;
+    sym.id = generate_symbol_id();
     sym.kind = SYMBOL_VARIABLE;
     sym.declaration = declaration;
 
@@ -170,6 +177,12 @@ static void process_declaration(AST_node_t *declaration)
     sym.name = strdup(func_type_or_declarator->tokens[0]->text);
 
     symbol_insert(sym);
+
+    free_AST_node(declaration->children[0]);
+    free_AST_node(declaration->children[1]);
+    array_clear(declaration->children);
+
+    declaration->symbol = resolve_symbol(sym.name);
 }
 
 static void process_parameter(AST_node_t *node)
@@ -178,6 +191,7 @@ static void process_parameter(AST_node_t *node)
     ASSERT(node->type == AST_NODE_TYPE_PARAMETER);
 
     symbol_t sym;
+    sym.id = generate_symbol_id();
     sym.kind = SYMBOL_PARAMETER;
     sym.declaration = node;
     sym.value.is_valid = false;
@@ -190,6 +204,12 @@ static void process_parameter(AST_node_t *node)
     sym.name = strdup(declarator->tokens[0]->text);
 
     symbol_insert(sym);
+
+    free_AST_node(node->children[0]);
+    free_AST_node(node->children[1]);
+    array_clear(node->children);
+
+    node->symbol = resolve_symbol(sym.name);
 }
 
 static void process_AST_node(AST_node_t *node);
@@ -199,6 +219,7 @@ static void process_function_definition(AST_node_t *node)
     ASSERT(array_size(node->children) >= 1);
 
     symbol_t sym;
+    sym.id = generate_symbol_id();
     sym.kind = SYMBOL_FUNCTION;
     sym.declaration = node;
     sym.value.is_valid = false;
@@ -224,6 +245,13 @@ static void process_function_definition(AST_node_t *node)
     }
     process_AST_node(node->children[2]);
     end_scope();
+
+    free_AST_node(node->children[0]);
+    free_AST_node(node->children[1]);
+    node->children[0] = node->children[2];
+    _array_set_size(node->children, 1);
+
+    node->symbol = resolve_symbol(sym.name); // this is necessary because the array own the copies the symbol
 }
 
 static void process_compound_statement(AST_node_t *node)

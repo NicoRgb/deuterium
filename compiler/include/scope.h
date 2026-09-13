@@ -56,7 +56,7 @@ typedef enum
     SYMBOL_PARAMETER
 } symbol_kind_t;
 
-typedef struct
+typedef struct _symbol
 {
     symbol_kind_t kind;
     char *name;
@@ -64,6 +64,7 @@ typedef struct
     AST_node_t *declaration;
 
     symbol_const_value_t value;
+    uint64_t id;
 } symbol_t;
 
 typedef struct _scope

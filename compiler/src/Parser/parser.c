@@ -45,6 +45,19 @@ AST_node_t *primary_expression(void);
 
 static void parameter_list(AST_node_t *node);
 
+void free_AST_node(AST_node_t *node)
+{
+    AST_node_t *it;
+    foreach (node->children, it)
+    {
+        free_AST_node(it);
+    }
+
+    array_free(node->children);
+    array_free(node->tokens);
+    free(node);
+}
+
 static AST_node_t *create_AST_node(AST_node_type_t type)
 {
     AST_node_t *node = malloc(sizeof(AST_node_t));

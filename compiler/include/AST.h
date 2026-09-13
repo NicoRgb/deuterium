@@ -49,4 +49,9 @@ typedef struct _AST_node
 
     array_t(token_t *) tokens;
     array_t(struct _AST_node *) children;
+
+    struct _symbol *symbol; // typed AST modified by sema stage
 } AST_node_t;
+
+void free_AST_node(AST_node_t *node);
+void desugar_typed_AST(AST_node_t *node);

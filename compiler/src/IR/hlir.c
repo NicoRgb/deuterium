@@ -144,10 +144,10 @@ static ir_value_t *generate_assignment(AST_node_t *node, ir_block_t *block)
     ASSERT(node);
     ASSERT(block);
 
-    const char *identifer = node->children[0]->tokens[0]->text;
-    ir_value_t *left = (ir_value_t *)hashtable_get(&block->function->bindings.table, identifer);
+    uint64_t sym_id = node->children[0]->symbol->id;
+    ir_value_t *left = (ir_value_t *)ht_get(&block->function->bindings.table, sym_id);
     if (!left)
-        left = (ir_value_t *)hashtable_get(&block->function->module->bindings.table, identifer);
+        left = (ir_value_t *)ht_get(&block->function->module->bindings.table, sym_id);
 
     ir_value_t *right = generate_expression(node->children[1], block);
 
@@ -188,9 +188,9 @@ static ir_value_t *generate_expression(AST_node_t *expr, ir_block_t *block)
 
     case AST_NODE_TYPE_IDENTIFIER:
     {
-        ir_value_t *value = (ir_value_t *)hashtable_get(&block->function->bindings.table, expr->tokens[0]->text);
+        ir_value_t *value = (ir_value_t *)ht_get(&block->function->bindings.table, expr->symbol->id);
         if (!value)
-            value = (ir_value_t *)hashtable_get(&block->function->module->bindings.table, expr->tokens[0]->text);
+            value = (ir_value_t *)ht_get(&block->function->module->bindings.table, expr->symbol->id);
 
         ASSERT(value);
         if (value->kind == IR_VALUE_PARAMETER)
@@ -406,7 +406,7 @@ static void generate_variable(symbol_t *sym, ir_block_t *block)
 
     ir_value_t *var = &instruction->value;
 
-    hashtable_insert(&block->function->bindings.table, sym->name, &instruction->value);
+    ht_insert(&block->function->bindings.table, sym->id, &instruction->value);
     array_push(block->instructions, instruction);
 
     if (ptr_type->pointer.dest->kind == IR_TYPE_INTEGER)
@@ -455,7 +455,7 @@ static ir_function_t *generate_function(symbol_t *symbol, AST_node_t *ast, scope
             param->value.type = type_to_ir_type(sym.type);
             array_push(function->parameters, param);
 
-            hashtable_insert(&function->bindings.table, sym.name, &param->value);
+            ht_insert(&function->bindings.table, sym.id, &param->value);
             break;
         }
 
@@ -471,13 +471,13 @@ static ir_function_t *generate_function(symbol_t *symbol, AST_node_t *ast, scope
         }
     }
 
-    AST_node_t *compound_statement = ast->children[2];
+    AST_node_t *compound_statement = ast->children[0];
     generate_compound_statement(compound_statement, entry);
 
     return function;
 }
 
-ir_module_t *generate_high_level_ir(AST_node_t *ast, scope_t *scope)
+ir_module_t *generate_high_level_ir(scope_t *scope)
 {
     ir_module_t *module = ir_alloc(sizeof(ir_module_t));
     array_create(ir_function_t *, module->functions);
@@ -508,7 +508,7 @@ ir_module_t *generate_high_level_ir(AST_node_t *ast, scope_t *scope)
             }
             array_push(module->globals, global);
 
-            hashtable_insert(&module->bindings.table, sym.name, &global->value);
+            ht_insert(&module->bindings.table, sym.id, &global->value);
             break;
         }
 

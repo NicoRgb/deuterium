@@ -76,6 +76,15 @@ typedef struct
         metadata->size = 0;                                                                                   \
     } while (0)
 
+#define _array_set_size(arr, s)                                                                             \
+    do                                                                                                      \
+    {                                                                                                       \
+        ASSERT(arr);                                                                                        \
+        __array_metadata_t *metadata = (__array_metadata_t *)((uintptr_t)arr - sizeof(__array_metadata_t)); \
+        ASSERT(metadata->capacity != 0);                                                                    \
+        metadata->size = s;                                                                                 \
+    } while (0)
+
 #define array_size(array) ((__array_metadata_t *)((uintptr_t)array - sizeof(__array_metadata_t)))->size
 
 #define foreach(array, it) for (size_t _i = 0;                                     \

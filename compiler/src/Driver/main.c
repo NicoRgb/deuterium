@@ -62,12 +62,16 @@ static int compile_unit(const char *filepath)
     char *content = read_file(filepath);
     ASSERT(content);
 
+    log_info("compilation unit:\n");
+    printf("%s\n\n", content);
+
     init_errors(filepath, content);
 
     init_lexer();
     tokstream_init(content);
 
     AST_node_t *AST = parse();
+    log_info("AST:\n");
     print_AST(AST);
 
     if (has_errors())
@@ -77,8 +81,12 @@ static int compile_unit(const char *filepath)
 
         return 0;
     }
+    printf("\n");
 
     create_scopes(AST);
+
+    log_info("typed AST:\n");
+    print_AST(AST);
 
     if (has_errors())
     {
@@ -88,13 +96,15 @@ static int compile_unit(const char *filepath)
 
         return 0;
     }
+    printf("\n");
 
     scope_t *scope = get_global_scope();
-    printf("\n");
+    log_info("symbol tables:\n");
     print_scope_tree(scope);
-
-    ir_module_t *module = generate_high_level_ir(AST, scope);
     printf("\n");
+
+    ir_module_t *module = generate_high_level_ir(scope);
+    log_info("high level intermediate representation:\n");
     print_hlir(module);
 
     free_scopes();

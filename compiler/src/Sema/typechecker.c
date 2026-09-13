@@ -665,6 +665,8 @@ static type_t *check_identifier(AST_node_t *node)
     if (!sym)
         return NULL;
 
+    node->symbol = sym;
+
     return clone_type(sym->type);
 }
 
