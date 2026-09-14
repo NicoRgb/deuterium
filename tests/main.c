@@ -1,6 +1,10 @@
+int add(int a, int b)
+{
+    return a + b;
+}
+
 int func(int n)
 {
     int a = 5;
-    int b = 0;
-    b = a--;
+    a = add(a, 3);
 }

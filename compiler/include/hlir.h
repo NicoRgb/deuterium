@@ -76,6 +76,7 @@ typedef enum
     IR_VALUE_CONSTANT,
     IR_VALUE_GLOBAL,
     IR_VALUE_PARAMETER,
+    IR_VALUE_FUNCTION,
     IR_VALUE_INSTRUCTION, // not safe to cast to ir_inst_t*
 } ir_value_kind_t;
 
@@ -89,7 +90,7 @@ typedef struct ir_value
     ir_type_t *type;
 } ir_value_t;
 
-// packed because ir_value_t* can be casted to ir_constant_t * if kind is CONSTANT
+// packed because ir_value_t* can be casted to ir_constant_t* if kind is CONSTANT
 typedef struct
 {
     ir_value_t base;
@@ -163,7 +164,7 @@ typedef struct _ir_inst
         struct
         {
             ir_value_t *callee;
-            array_t(ir_value_t *) arguments;
+            static_array_t(ir_value_t *) arguments;
         } call;
     };
 } ir_inst_t;
@@ -175,6 +176,8 @@ typedef struct
 
 typedef struct _ir_function
 {
+    ir_value_t value;
+
     const char *name;
     ir_type_t *function_type;
 

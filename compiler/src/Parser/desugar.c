@@ -105,6 +105,18 @@ static AST_node_t *desugar_expression(AST_node_t *node)
         node->children[0] = desugar_expression(node->children[0]);
         break;
 
+    case AST_NODE_TYPE_MEMBER_ACCESS:
+        break;
+
+    case AST_NODE_TYPE_POINTER_MEMBER_ACCESS:
+        break;
+
+    case AST_NODE_TYPE_ARRAY_SUBSCRIPT:
+        break;
+
+    case AST_NODE_TYPE_FUNCTION_CALL:
+        break;
+
     case AST_NODE_TYPE_ASSIGNMENT:
         node->children[0] = desugar_expression(node->children[0]);
         node->children[1] = desugar_expression(node->children[1]);

@@ -428,6 +428,21 @@ void print_hlir_instruction(ir_inst_t *instruction)
         break;
     }
 
+    case IR_CALL:
+    {
+        print_hlir_value(&instruction->value);
+        printf(" = " ANSI_CYAN "call " ANSI_RESET);
+        printf("%s(", ((ir_function_t *)instruction->call.callee)->name);
+        for (size_t i = 0; i < array_size(instruction->call.arguments); i++)
+        {
+            if (i > 0)
+                printf(", ");
+            print_hlir_value(instruction->call.arguments[i]);
+        }
+        printf(")\n");
+        break;
+    }
+
     default:
         ASSERT(0);
     }

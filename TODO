@@ -3,3 +3,9 @@
  - slab allocator for ir?
 
  - remove INTLIT type from ir
+
+ - BUGS:
+  - int a = 5;
+    int b = a;
+
+    type error

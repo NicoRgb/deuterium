@@ -444,6 +444,7 @@ static type_t *check_function_call(AST_node_t *node)
 
         if (arg->children[0]->type != AST_NODE_TYPE_BINARY_OPERATION)
         {
+            index_plus_one = array_size(func->function.parameter_types) - (++i);
             arg_type = check_expression(arg->children[0]);
             if (!arg_type)
                 break;

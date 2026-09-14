@@ -334,8 +334,48 @@ static ir_value_t *generate_function_call(AST_node_t *node, ir_block_t *block)
     ASSERT(node);
     ASSERT(block);
 
-    ASSERT(0);
-    return NULL;
+    symbol_t *sym = node->children[0]->symbol;
+    ir_value_t *func = (ir_value_t *)ht_get(&block->function->module->bindings.table, sym->id);
+
+    ir_inst_t *instruction = ir_alloc(sizeof(ir_inst_t));
+    instruction->value.id = ir_generate_id();
+    instruction->value.kind = IR_VALUE_INSTRUCTION;
+    instruction->value.type = func->type->function.return_type;
+    instruction->opcode = IR_CALL;
+
+    instruction->call.callee = func;
+    static_array_create(ir_value_t *, array_size(func->type->function.parameter_types), instruction->call.arguments);
+    _array_set_size(instruction->call.arguments, array_size(func->type->function.parameter_types));
+
+    AST_node_t *arg = node->children[1];
+    size_t i = 0;
+    while (true)
+    {
+        ASSERT(arg->type == AST_NODE_TYPE_BINARY_OPERATION);
+
+        size_t index_plus_one = array_size(func->type->function.parameter_types) - i;
+        if (index_plus_one == 0)
+            break;
+
+        ir_value_t *arg_value = generate_expression(arg->children[1], block);
+        instruction->call.arguments[index_plus_one - 1] = arg_value;
+
+        if (arg->children[0]->type != AST_NODE_TYPE_BINARY_OPERATION)
+        {
+            index_plus_one = array_size(func->type->function.parameter_types) - (++i);
+            arg_value = generate_expression(arg->children[0], block);
+            instruction->call.arguments[index_plus_one - 1] = arg_value;
+
+            break;
+        }
+
+        arg = arg->children[0];
+        i++;
+    }
+
+    array_push(block->instructions, instruction);
+
+    return &instruction->value;
 }
 
 static ir_value_t *generate_assignment(AST_node_t *node, ir_block_t *block)
@@ -663,6 +703,10 @@ static ir_function_t *generate_function(symbol_t *symbol, AST_node_t *ast, scope
     ASSERT(scope);
 
     ir_function_t *function = ir_alloc(sizeof(ir_function_t));
+    function->value.id = ir_generate_id();
+    function->value.kind = IR_VALUE_FUNCTION;
+    function->value.type = type_to_ir_type(symbol->type);
+
     function->function_type = type_to_ir_type(symbol->type);
     function->name = symbol->name;
     function->module = module;
@@ -708,8 +752,17 @@ static ir_function_t *generate_function(symbol_t *symbol, AST_node_t *ast, scope
     }
 
     AST_node_t *compound_statement = ast->children[0];
-    generate_compound_statement(compound_statement, entry);
+    ir_block_t *exit = generate_compound_statement(compound_statement, entry);
+    if (exit && !exit->terminator)
+    {
+        ir_inst_t *instruction = ir_alloc(sizeof(ir_inst_t));
+        instruction->opcode = IR_RET;
+        instruction->ret.value = NULL;
 
+        exit->terminator = instruction;
+    }
+
+    ht_insert(&module->bindings.table, symbol->id, &function->value);
     return function;
 }
 
