@@ -102,8 +102,6 @@ static int compile_unit(const char *filepath)
     print_AST(AST);
     printf("\n");
 
-    exit(EXIT_SUCCESS);
-
     scope_t *scope = get_global_scope();
     log_info("symbol tables:\n");
     print_scope_tree(scope);

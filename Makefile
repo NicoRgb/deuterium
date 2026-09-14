@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -std=gnu11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wstrict-prototypes -Wundef -fno-common -O0 -g -Icompiler/include -DALWAYS_VERBOSE
+CFLAGS += -Wno-address-of-packed-member -Wno-unused-function
 LDFLAGS =
 
 SRC_DIR = compiler/src
@@ -22,21 +23,25 @@ TEST_TARGET = $(BUILD_DIR)/run_tests
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(OBJ) -o $@ $(LDFLAGS)
+	@echo "CC $@"
+	@$(CC) $(OBJ) -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "CC $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 $(BUILD_DIR)/test_%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "CC $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(TEST_TARGET): $(TEST_OBJ)
-	$(CC) $(TEST_OBJ) -o $@ $(LDFLAGS)
+	@echo "CC $@"
+	@$(CC) $(TEST_OBJ) -o $@ $(LDFLAGS)
 
 clean:
 	rm -rf $(BUILD_DIR)

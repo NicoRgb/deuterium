@@ -21,7 +21,18 @@ static AST_node_t *desugar_unary_operation(AST_node_t *node)
     case TOKTYPE_MINUS:
     {
         if (node->children[0]->type != AST_NODE_TYPE_INTEGER_LITERAL)
-            break;
+        {
+            node->type = AST_NODE_TYPE_BINARY_OPERATION;
+            node->tokens[0]->type = TOKTYPE_STAR;
+            node->tokens[0]->text = "*";
+
+            AST_node_t *intlit = create_AST_node(AST_NODE_TYPE_INTEGER_LITERAL);
+            node_push_token(intlit, tok_forge(TOKTYPE_INTLIT, strdup("-1")));
+
+            node_push_child(node, intlit);
+
+            return node;
+        }
 
         AST_node_t *res = node->children[0];
         char *text = res->tokens[0]->text;
@@ -39,6 +50,30 @@ static AST_node_t *desugar_unary_operation(AST_node_t *node)
 
         free_AST_node_layer(node);
         return res;
+    }
+    case TOKTYPE_PLUS_PLUS:
+    case TOKTYPE_MINUS_MINUS:
+    {
+        AST_node_t *binop = create_AST_node(AST_NODE_TYPE_BINARY_OPERATION);
+
+        if (node->tokens[0]->type == TOKTYPE_PLUS_PLUS)
+            node_push_token(binop, tok_forge(TOKTYPE_PLUS, "+"));
+        else
+            node_push_token(binop, tok_forge(TOKTYPE_MINUS, "-"));
+
+        node->type = AST_NODE_TYPE_ASSIGNMENT;
+        node->tokens[0] = tok_forge(TOKTYPE_EQUAL, "=");
+
+        node_push_child(binop, node_clone(node->children[0]));
+
+        AST_node_t *intlit = create_AST_node(AST_NODE_TYPE_INTEGER_LITERAL);
+        node_push_token(intlit, tok_forge(TOKTYPE_INTLIT, "1"));
+
+        node_push_child(binop, intlit);
+
+        node_push_child(node, binop);
+
+        return node;
     }
     default:
         break;

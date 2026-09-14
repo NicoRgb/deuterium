@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-static const char *AST_node_type_to_string(AST_node_type_t type)
+const char *AST_node_type_to_string(AST_node_type_t type)
 {
     switch (type)
     {
@@ -317,8 +317,16 @@ void print_hlir_instruction(ir_inst_t *instruction)
     switch (instruction->opcode)
     {
     case IR_ADD:
+    case IR_SUB:
+    case IR_MUL:
+    case IR_DIV:
     case IR_REM:
+    case IR_CMP_EQ:
     case IR_CMP_NE:
+    case IR_CMP_LT:
+    case IR_CMP_LE:
+    case IR_CMP_GT:
+    case IR_CMP_GE:
     {
         print_hlir_value(&instruction->value);
         printf(" = " ANSI_CYAN);
@@ -327,11 +335,35 @@ void print_hlir_instruction(ir_inst_t *instruction)
         case IR_ADD:
             printf("add");
             break;
+        case IR_SUB:
+            printf("sub");
+            break;
+        case IR_MUL:
+            printf("mul");
+            break;
+        case IR_DIV:
+            printf("div");
+            break;
         case IR_REM:
             printf("rem");
             break;
+        case IR_CMP_EQ:
+            printf("cmp eq");
+            break;
         case IR_CMP_NE:
             printf("cmp ne");
+            break;
+        case IR_CMP_LT:
+            printf("cmp lt");
+            break;
+        case IR_CMP_LE:
+            printf("cmp le");
+            break;
+        case IR_CMP_GT:
+            printf("cmp gt");
+            break;
+        case IR_CMP_GE:
+            printf("cmp ge");
             break;
         default:
             ASSERT(0);

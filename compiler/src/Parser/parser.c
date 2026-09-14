@@ -111,6 +111,28 @@ void node_push_token(AST_node_t *node, token_t *tok)
     array_push(node->tokens, tok);
 }
 
+AST_node_t *node_clone(AST_node_t *node)
+{
+    AST_node_t *res = create_AST_node(node->type);
+    res->start = node->start;
+    res->end = node->end;
+    res->symbol = node->symbol;
+
+    token_t *tok;
+    foreach (node->tokens, tok)
+    {
+        node_push_token(res, tok);
+    }
+
+    AST_node_t *child;
+    foreach (node->children, child)
+    {
+        node_push_child(res, node_clone(child));
+    }
+
+    return res;
+}
+
 static void node_start(AST_node_t *node, position_t *start)
 {
     ASSERT(node);

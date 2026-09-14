@@ -3,5 +3,3 @@
  - slab allocator for ir?
 
  - remove INTLIT type from ir
-
- - switch from uint64_t for int values to int64_t

@@ -58,5 +58,6 @@ void free_AST_node_layer(AST_node_t *node);
 AST_node_t *create_AST_node(AST_node_type_t type);
 void node_push_child(AST_node_t *node, AST_node_t *child);
 void node_push_token(AST_node_t *node, token_t *tok);
+AST_node_t *node_clone(AST_node_t *node);
 
 void desugar_typed_AST(AST_node_t *node); // NOTE: source mappings are not preserved

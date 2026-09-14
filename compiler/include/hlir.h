@@ -93,13 +93,13 @@ typedef struct ir_value
 typedef struct
 {
     ir_value_t base;
-    uint64_t value;
+    int64_t value;
 } __attribute__((packed)) ir_constant_t;
 
 typedef struct
 {
     ir_value_t value;
-    uint64_t initial_value;
+    int64_t initial_value;
 } __attribute__((packed)) ir_global_t;
 
 typedef struct

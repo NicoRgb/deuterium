@@ -22,12 +22,13 @@ void log_error(const char *fmt, ...);
         }                                                                                   \
     } while (0)
 
-#define ASSERT_MSG(condition, msg)                                                   \
-    do                                                                               \
-    {                                                                                \
-        if (!(condition))                                                            \
-        {                                                                            \
-            log_error("assertion failure at %s:%lld (%s)", __FILE__, __LINE__, msg); \
-            abort();                                                                 \
-        }                                                                            \
+#define ASSERT_MSG(condition, msg, ...)                                    \
+    do                                                                     \
+    {                                                                      \
+        if (!(condition))                                                  \
+        {                                                                  \
+            log_error("assertion failure at %s:%lld", __FILE__, __LINE__); \
+            log_error(msg, __VA_ARGS__);                                   \
+            abort();                                                       \
+        }                                                                  \
     } while (0)
