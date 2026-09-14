@@ -1,6 +1,8 @@
-int is_even(int n)
+int func(int n)
 {
-    int a = 0;
+    int a;
+    a = -(-(-5));
+
     while (1)
         a++;
 

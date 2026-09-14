@@ -1,5 +1,5 @@
 #include "sema.h"
-#include "strdup.h"
+#include "strutils.h"
 
 static size_t max(size_t a, size_t b)
 {

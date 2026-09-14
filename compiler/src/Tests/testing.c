@@ -1,6 +1,6 @@
-#include <testing.h>
-#include <array.h>
-#include <strdup.h>
+#include "testing.h"
+#include "array.h"
+#include "strutils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
